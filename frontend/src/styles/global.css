@@ -576,6 +576,7 @@ body {
 }
 
 .boton-buscar:hover:not(:disabled) {
+  background: var(--vino);
   color: var(--blanco);
   filter: brightness(1.06);
 }

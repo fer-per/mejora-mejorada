@@ -21,6 +21,10 @@ export function limitarIntentos(req, res, next) {
   return next();
 }
 
+export function reiniciarLimiteIntentos() {
+  intentos.clear();
+}
+
 setInterval(() => {
   const ahora = Date.now();
   for (const [clave, registro] of intentos) {

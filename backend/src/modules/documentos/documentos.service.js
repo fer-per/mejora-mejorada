@@ -119,7 +119,7 @@ export async function obtenerDetalle(id, usuario) {
   return aDtoDetalle(documento);
 }
 
-function resolverRutaAbsoluta(rutaRelativa) {
+export function resolverRutaAbsoluta(rutaRelativa) {
   const base = config.rutas.repositorio.endsWith(path.sep)
     ? config.rutas.repositorio
     : config.rutas.repositorio + path.sep;
@@ -130,7 +130,7 @@ function resolverRutaAbsoluta(rutaRelativa) {
   return absoluta;
 }
 
-function nombreDescarga(titulo, extension) {
+export function nombreDescarga(titulo, extension) {
   const limpio = titulo
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

@@ -18,6 +18,11 @@ postgres-portable/
 storage/repositorio/*
 !storage/repositorio/.gitkeep
 
+# Resultados de pruebas
+backend/coverage/
+pruebas/jmeter/resultados/
+*.jtl
+
 # Registros y temporales
 *.log
 npm-debug.log*

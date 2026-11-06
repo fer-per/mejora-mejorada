@@ -1,0 +1,14 @@
+{
+  "name": "siarc-evidencias",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generación de capturas de ejecución para la tesis",
+  "scripts": {
+    "ui": "node capturar-ui.mjs",
+    "jmeter": "node capturar-jmeter.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.0"
+  }
+}

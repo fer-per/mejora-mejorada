@@ -9,7 +9,10 @@ const esquemaFecha = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use el formato AAAA-MM-DD');
 
-const aIndefinido = (valor) => (valor === undefined || valor === null || valor === '' ? undefined : valor);
+const aIndefinido = (valor) => {
+  if (valor === undefined || valor === null) return undefined;
+  return String(valor).trim() === '' ? undefined : valor;
+};
 
 export const esquemaId = z.object({
   id: z.coerce.number().int().positive('Identificador inválido'),

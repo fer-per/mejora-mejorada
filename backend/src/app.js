@@ -34,7 +34,14 @@ export function crearApp() {
       crossOriginResourcePolicy: { policy: 'same-origin' },
     }),
   );
-  app.use(cors({ origin: config.corsOrigen, credentials: false }));
+  app.use(
+    cors({
+      origin(origen, callback) {
+        callback(null, origen === config.corsOrigen);
+      },
+      credentials: false,
+    }),
+  );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false }));
 
