@@ -33,6 +33,7 @@ function aDtoResumen(fila) {
     repositorio: fila.repositorio,
     siglo: fila.siglo,
     relevancia: fila.relevancia == null ? null : Number(Number(fila.relevancia).toFixed(4)),
+    digitalizado: Boolean(fila.ruta_archivo),
     miniaturaUrl: fila.ruta_miniatura ? `/api/documentos/${fila.id}/miniatura` : null,
   };
 }

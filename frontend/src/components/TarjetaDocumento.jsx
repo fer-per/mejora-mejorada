@@ -20,7 +20,7 @@ export default function TarjetaDocumento({ documento, activo, onSeleccionar }) {
         ) : (
           <div className="tarjeta-sin-imagen">
             <IconoImagen size={26} />
-            <span>Sin digitalizar</span>
+            <span>{documento.digitalizado ? 'Sin vista previa' : 'Sin digitalizar'}</span>
           </div>
         )}
         <span className="tarjeta-anio">{documento.anio}</span>

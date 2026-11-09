@@ -66,9 +66,30 @@ propia. Cree la base de datos y ajuste `backend/.env` a partir de `backend/.env.
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=siarc_db
+DB_SCHEMA=public
 DB_USER=postgres
 DB_PASSWORD=tu_contraseña_local
 ```
+
+#### Conexión a la base DB_ARA
+
+El piloto puede trabajar directamente con la base existente `DB_ARA`, cuyo esquema
+`siarc` contiene el acervo migrado (fondos, protocolos, registros y archivos digitales).
+Configure `backend/.env` así:
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=DB_ARA
+DB_SCHEMA=siarc
+DB_USER=postgres
+DB_PASSWORD=tu_contraseña_local
+RUTA_REPOSITORIO=C:/ruta/al/ACERVO DOCUMENTAL
+```
+
+Con esta configuración no ejecute `npm run db:reset`, porque recrea el esquema. Para
+actualizar la estructura use `npm run db:migrar`, que aplica las migraciones pendientes
+sobre el esquema `siarc` sin borrar los datos.
 
 ### 2. Backend
 
