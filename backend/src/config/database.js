@@ -27,6 +27,21 @@ export function consultar(texto, parametros = []) {
   return pool.query(texto, parametros);
 }
 
+export async function conTransaccion(operacion) {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const resultado = await operacion(cliente);
+    await cliente.query('COMMIT');
+    return resultado;
+  } catch (error) {
+    await cliente.query('ROLLBACK');
+    throw error;
+  } finally {
+    cliente.release();
+  }
+}
+
 export async function cerrarPool() {
   await pool.end();
 }

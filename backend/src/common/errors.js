@@ -37,6 +37,10 @@ export const errores = {
     new AppError('Demasiados intentos. Espere unos minutos antes de volver a intentar.', 429, 'DEMASIADOS_INTENTOS'),
   errorBaseDeDatos: () =>
     new AppError('No fue posible consultar la base de datos.', 503, 'BASE_DE_DATOS_NO_DISPONIBLE'),
+  operacionNoPermitida: (mensaje) =>
+    new AppError(mensaje, 400, 'OPERACION_NO_PERMITIDA'),
+  archivoInvalido: (mensaje) =>
+    new AppError(mensaje, 400, 'ARCHIVO_INVALIDO'),
 };
 
 export default AppError;

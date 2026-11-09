@@ -217,8 +217,9 @@ describe('AVZ · Búsqueda avanzada', () => {
     expect(respuesta.status).toBe(400);
   });
 
-  it.fails('AVZ-12 devuelve 400 ante fechas inexistentes (defecto conocido)', async () => {
-    const respuesta = await avanzada({ fecha_desde: '2024-02-31' });
-    expect(respuesta.status).toBe(400);
+  it('AVZ-12 devuelve 400 ante fechas inexistentes', async () => {
+    expect((await avanzada({ fecha_desde: '2024-02-31' })).status).toBe(400);
+    expect((await avanzada({ fecha_desde: '2023-02-29' })).status).toBe(400);
+    expect((await avanzada({ fecha_desde: '2024-13-01' })).status).toBe(400);
   });
 });

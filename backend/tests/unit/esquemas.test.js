@@ -105,6 +105,14 @@ describe('esquemaBusquedaAvanzada', () => {
     expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '1848-1-1' }).success).toBe(false);
   });
 
+  it('rechaza fechas inexistentes en el calendario', () => {
+    expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '2024-02-31' }).success).toBe(false);
+    expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '2023-02-29' }).success).toBe(false);
+    expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '2024-13-01' }).success).toBe(false);
+    expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '2024-04-31' }).success).toBe(false);
+    expect(esquemaBusquedaAvanzada.safeParse({ fecha_desde: '2024-02-29' }).success).toBe(true);
+  });
+
   it('rechaza un rango de fechas invertido', () => {
     const resultado = esquemaBusquedaAvanzada.safeParse({
       fecha_desde: '1900-01-01',

@@ -32,6 +32,17 @@ export function manejarErrores(error, req, res, next) {
     estado = 400;
     codigo = 'DATO_INVALIDO';
     mensaje = 'Uno de los valores enviados no es válido.';
+  } else if (error.code === '22007' || error.code === '22008') {
+    estado = 400;
+    codigo = 'FECHA_INVALIDA';
+    mensaje = 'La fecha indicada no es válida.';
+  } else if (error.name === 'MulterError') {
+    estado = 400;
+    codigo = 'ARCHIVO_INVALIDO';
+    mensaje =
+      error.code === 'LIMIT_FILE_SIZE'
+        ? 'El archivo excede el tamaño máximo permitido.'
+        : 'No fue posible procesar el archivo enviado.';
   } else if (error.code && String(error.code).startsWith('ECONN')) {
     estado = 503;
     codigo = 'BASE_DE_DATOS_NO_DISPONIBLE';

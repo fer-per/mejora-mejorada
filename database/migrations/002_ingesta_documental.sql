@@ -1,0 +1,5 @@
+ALTER TABLE archivo
+    ADD COLUMN IF NOT EXISTS nombre_original VARCHAR(255);
+
+ALTER TABLE archivo
+    ADD COLUMN IF NOT EXISTS tamano_bytes BIGINT;

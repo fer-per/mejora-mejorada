@@ -1,8 +1,11 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../../config/env.js';
-import { existeObjeto, usaAlmacenamientoRemoto } from '../../config/almacenamiento.js';
+import { existeObjeto, subirObjeto, usaAlmacenamientoRemoto } from '../../config/almacenamiento.js';
 import { errores } from '../../common/errors.js';
+import { tituloDesdeNombre, validarArchivoDigital } from '../../common/archivos.js';
 import { registrarAccion } from '../auditoria/auditoria.repository.js';
 import * as repositorio from './documentos.repository.js';
 
@@ -45,6 +48,8 @@ function aDtoDetalle(fila) {
     fechaCarga: aIso(fila.fecha_carga),
     usuarioCarga: fila.usuario_carga,
     responsableDescripcion: fila.responsable_descripcion,
+    nombreOriginal: fila.nombre_original,
+    tamanoBytes: fila.tamano_bytes == null ? null : Number(fila.tamano_bytes),
     interesados: fila.interesados ?? [],
     archivoUrl: `/api/documentos/${fila.id}/archivo`,
   };
@@ -106,6 +111,83 @@ export function buscarAvanzada(datos, usuario) {
   );
 }
 
+async function guardarArchivoDigital(rutaRelativa, buffer, tipoContenido) {
+  if (usaAlmacenamientoRemoto) {
+    await subirObjeto(rutaRelativa, buffer, tipoContenido);
+    return null;
+  }
+  const absoluta = resolverRutaAbsoluta(rutaRelativa);
+  await fsp.mkdir(path.dirname(absoluta), { recursive: true });
+  await fsp.writeFile(absoluta, buffer);
+  return absoluta;
+}
+
+export async function crearDocumento(datos, archivoRecibido, usuario) {
+  if (!archivoRecibido) {
+    throw errores.archivoInvalido('Debe adjuntar un archivo PDF/A o TIFF en el campo "archivo".');
+  }
+
+  const { formato, extension, tipoContenido } = validarArchivoDigital({
+    buffer: archivoRecibido.buffer,
+    nombreOriginal: archivoRecibido.originalname,
+    tipoMime: archivoRecibido.mimetype,
+  });
+
+  const rutaRelativa = `ingesta/${datos.anio}/${crypto.randomUUID()}.${extension}`;
+  const rutaLocal = await guardarArchivoDigital(rutaRelativa, archivoRecibido.buffer, tipoContenido);
+
+  let creado;
+  try {
+    creado = await repositorio.crearDocumento(
+      {
+        idFondo: datos.id_fondo,
+        protocolo: datos.protocolo,
+        anio: datos.anio,
+        registro: datos.registro,
+        titulo: datos.titulo ?? tituloDesdeNombre(archivoRecibido.originalname),
+        mes: datos.mes,
+        idResponsableDescripcion: datos.id_responsable_descripcion,
+        idUsuarioCarga: usuario.id,
+        tipologia: datos.tipologia,
+        serie: datos.serie,
+        subserie: datos.subserie,
+        folios: datos.folios,
+        estadoConservacion: datos.estado_conservacion,
+        alcanceContenido: datos.alcance_contenido,
+        descriptores: datos.descriptores,
+        fechaProduccion: datos.fecha_produccion,
+        observaciones: datos.observaciones,
+        ubicacionFisica: datos.ubicacion_fisica,
+        interesados: datos.interesados,
+      },
+      {
+        formato,
+        ruta: rutaRelativa,
+        nombreOriginal: archivoRecibido.originalname,
+        tamanoBytes: archivoRecibido.size,
+      },
+    );
+  } catch (error) {
+    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    throw error;
+  }
+
+  if (!creado) {
+    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    throw errores.noEncontrado('Fondo');
+  }
+
+  const documento = await repositorio.obtenerDocumento(creado.id);
+
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'CARGA_DOCUMENTO',
+    descripcion: `Carga del documento #${creado.id} "${documento.titulo}" (${formato}, ${archivoRecibido.size} bytes) en el fondo #${datos.id_fondo}.`,
+  });
+
+  return aDtoDetalle(documento);
+}
+
 export async function obtenerDetalle(id, usuario) {
   const documento = await repositorio.obtenerDocumento(id);
   if (!documento) {
@@ -116,6 +198,24 @@ export async function obtenerDetalle(id, usuario) {
     tipoAccion: 'CONSULTA_DETALLE_DOCUMENTO',
     descripcion: `Consulta del detalle del documento #${id} "${documento.titulo}".`,
   });
+  return aDtoDetalle(documento);
+}
+
+export async function actualizarDocumento(id, datos, usuario) {
+  const resultado = await repositorio.actualizarDocumento(id, datos, usuario.id);
+  if (!resultado) {
+    throw errores.noEncontrado('Documento');
+  }
+
+  const documento = await repositorio.obtenerDocumento(id);
+  const campos = Object.keys(datos).filter((campo) => datos[campo] !== undefined);
+
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'EDICION_DOCUMENTO',
+    descripcion: `Edición del documento #${id} "${documento.titulo}". Campos actualizados: ${campos.join(', ')}.`,
+  });
+
   return aDtoDetalle(documento);
 }
 

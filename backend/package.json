@@ -11,6 +11,7 @@
     "db:schema": "node scripts/init-db.mjs --solo-esquema",
     "db:seed": "node scripts/init-db.mjs --solo-seed",
     "db:migrar-ara": "node scripts/migrar-db-ara.mjs",
+    "db:migrar": "node scripts/migrar.mjs",
     "storage:generar": "node scripts/generar-repositorio.mjs",
     "storage:subir": "node scripts/subir-repositorio.mjs",
     "test": "vitest run",
@@ -32,6 +33,7 @@
     "express": "^4.21.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   },

@@ -43,6 +43,16 @@ export const obtenerDetalle = manejar(async (req, res) => {
   res.json({ documento });
 });
 
+export const crear = manejar(async (req, res) => {
+  const documento = await servicio.crearDocumento(req.datos, req.file, req.usuario);
+  res.status(201).json({ documento });
+});
+
+export const actualizar = manejar(async (req, res) => {
+  const documento = await servicio.actualizarDocumento(Number(req.params.id), req.datos, req.usuario);
+  res.json({ documento });
+});
+
 export const descargarArchivo = manejar(async (req, res, next) => {
   const preparado = await servicio.obtenerArchivo(req.datos.id, req.usuario);
   await transmitir(preparado, res, next, 'private, max-age=60');

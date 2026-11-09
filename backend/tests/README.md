@@ -43,6 +43,9 @@ backend/tests/
 │  ├─ busqueda.test.js       # BUS y AVZ
 │  ├─ detalle-archivo.test.js# DET y ARC
 │  ├─ catalogos-auditoria.test.js # CAT y AUD
+│  ├─ edicion-auditoria.test.js # EDT y consulta de auditoría
+│  ├─ usuarios.test.js       # USR
+│  ├─ ingesta.test.js        # ING
 │  └─ seguridad.test.js      # AZ y SEG
 ├─ helpers/
 │  ├─ api.js                 # app, login y cabecera Bearer
@@ -62,13 +65,15 @@ backend/tests/
 | BUS / AVZ | `unit/esquemas.test.js`, `api/busqueda.test.js` |
 | DET / ARC | `api/detalle-archivo.test.js` |
 | CAT / AUD | `api/catalogos-auditoria.test.js` |
+| EDT / AUD (consulta) | `api/edicion-auditoria.test.js` |
+| USR | `api/usuarios.test.js` |
+| ING | `api/ingesta.test.js`, `unit/utilidades.test.js` |
 | BD | `../pruebas/bd/verificar-bd.mjs` |
 | UI | `../pruebas/ui/lista-verificacion.md` |
 | REN | `../pruebas/jmeter/siarc-carga.jmx` |
 
-## Defectos conocidos marcados como `it.fails`
+## Defectos corregidos
 
-- **AVZ-12**: fechas con formato válido pero inexistentes (`2024-02-31`, `2024-13-01`)
-  superan Zod y PostgreSQL responde con un error no mapeado (HTTP 500). El caso está
-  marcado con `it.fails`; cuando el esquema valide el calendario, la prueba fallará y
-  deberá cambiarse a `it`.
+- **AVZ-12 (D-01)**: las fechas con formato válido pero inexistentes (`2024-02-31`,
+  `2023-02-29`, `2024-13-01`) ahora se rechazan en Zod con HTTP 400. Además, los errores
+  de PostgreSQL `22007`/`22008` se mapean a `FECHA_INVALIDA` (HTTP 400) como respaldo.

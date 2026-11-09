@@ -1,4 +1,4 @@
-import { consultar } from '../../config/database.js';
+import { consultar, conTransaccion } from '../../config/database.js';
 
 const COLUMNAS = `
     a.id,
@@ -18,6 +18,8 @@ const COLUMNAS = `
     a.ubicacion_fisica,
     a.ruta_archivo,
     a.ruta_miniatura,
+    a.nombre_original,
+    a.tamano_bytes,
     r.numero AS registro,
     ap.anio AS anio_protocolo,
     p.numero AS protocolo,
@@ -139,6 +141,184 @@ export async function obtenerDocumento(id) {
   );
 
   return { ...documento, interesados };
+}
+
+const CAMPOS_ACTUALIZABLES = {
+  tipologia: 'tipologia_documental',
+  serie: 'serie',
+  subserie: 'subserie',
+  folios: 'folios',
+  formato: 'formato',
+  estado_conservacion: 'estado_conservacion',
+  alcance_contenido: 'alcance_contenido',
+  descriptores: 'descriptores',
+  fecha_produccion: 'fecha_produccion',
+  observaciones: 'observaciones',
+  ubicacion_fisica: 'ubicacion_fisica',
+};
+
+async function guardarInteresados(cliente, idTituloEscritura, interesados) {
+  await cliente.query(
+    'DELETE FROM rol_interesado WHERE id_titulo_escritura = $1',
+    [idTituloEscritura],
+  );
+  for (const interesado of interesados) {
+    const { rows: existentes } = await cliente.query(
+      'SELECT id FROM interesado WHERE nombre = $1 AND documento IS NOT DISTINCT FROM $2 LIMIT 1',
+      [interesado.nombre, interesado.documento ?? null],
+    );
+    let idInteresado = existentes[0]?.id;
+    if (!idInteresado) {
+      const { rows: creados } = await cliente.query(
+        'INSERT INTO interesado (nombre, documento) VALUES ($1, $2) RETURNING id',
+        [interesado.nombre, interesado.documento ?? null],
+      );
+      idInteresado = creados[0].id;
+    }
+    await cliente.query(
+      `INSERT INTO rol_interesado (id_titulo_escritura, id_interesado, rol)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (id_titulo_escritura, id_interesado)
+       DO UPDATE SET rol = EXCLUDED.rol`,
+      [idTituloEscritura, idInteresado, interesado.rol],
+    );
+  }
+}
+
+export async function crearDocumento(datos, archivo) {
+  return conTransaccion(async (cliente) => {
+    const { rows: fondos } = await cliente.query('SELECT id FROM fondo WHERE id = $1', [datos.idFondo]);
+    if (!fondos[0]) return null;
+
+    let { rows } = await cliente.query(
+      'SELECT id FROM protocolo WHERE id_fondo = $1 AND numero = $2 ORDER BY id LIMIT 1',
+      [datos.idFondo, datos.protocolo],
+    );
+    let idProtocolo = rows[0]?.id;
+    if (!idProtocolo) {
+      ({ rows } = await cliente.query(
+        'INSERT INTO protocolo (id_fondo, numero) VALUES ($1, $2) RETURNING id',
+        [datos.idFondo, datos.protocolo],
+      ));
+      idProtocolo = rows[0].id;
+    }
+
+    ({ rows } = await cliente.query(
+      'SELECT id FROM anio_protocolo WHERE id_protocolo = $1 AND anio = $2',
+      [idProtocolo, datos.anio],
+    ));
+    let idAnio = rows[0]?.id;
+    if (!idAnio) {
+      ({ rows } = await cliente.query(
+        'INSERT INTO anio_protocolo (id_protocolo, anio) VALUES ($1, $2) RETURNING id',
+        [idProtocolo, datos.anio],
+      ));
+      idAnio = rows[0].id;
+    }
+
+    ({ rows } = await cliente.query(
+      'SELECT id FROM registro WHERE id_anio_protocolo = $1 AND numero = $2 ORDER BY id LIMIT 1',
+      [idAnio, datos.registro],
+    ));
+    let idRegistro = rows[0]?.id;
+    if (!idRegistro) {
+      ({ rows } = await cliente.query(
+        'INSERT INTO registro (id_anio_protocolo, numero) VALUES ($1, $2) RETURNING id',
+        [idAnio, datos.registro],
+      ));
+      idRegistro = rows[0].id;
+    }
+
+    ({ rows } = await cliente.query(
+      `INSERT INTO titulo_escritura (id_registro, nombre, mes)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [idRegistro, datos.titulo, datos.mes ?? null],
+    ));
+    const idTituloEscritura = rows[0].id;
+
+    ({ rows } = await cliente.query(
+      `INSERT INTO archivo (
+         id_titulo_escritura, id_responsable_descripcion, id_usuario_carga,
+         tipologia_documental, serie, subserie, folios, formato, estado_conservacion,
+         alcance_contenido, descriptores, fecha_produccion, ruta_archivo,
+         nombre_original, tamano_bytes, observaciones, ubicacion_fisica
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9,
+         $10, $11, $12, $13, $14, $15, $16, $17
+       ) RETURNING id`,
+      [
+        idTituloEscritura,
+        datos.idResponsableDescripcion ?? null,
+        datos.idUsuarioCarga,
+        datos.tipologia,
+        datos.serie ?? null,
+        datos.subserie ?? null,
+        datos.folios ?? null,
+        archivo.formato,
+        datos.estadoConservacion,
+        datos.alcanceContenido ?? null,
+        datos.descriptores ?? null,
+        datos.fechaProduccion ?? null,
+        archivo.ruta,
+        archivo.nombreOriginal,
+        archivo.tamanoBytes,
+        datos.observaciones ?? null,
+        datos.ubicacionFisica ?? null,
+      ],
+    ));
+    const idArchivo = rows[0].id;
+
+    if (datos.interesados?.length) {
+      await guardarInteresados(cliente, idTituloEscritura, datos.interesados);
+    }
+
+    return { id: idArchivo, idTituloEscritura };
+  });
+}
+
+export async function actualizarDocumento(id, cambios, idUsuario) {
+  return conTransaccion(async (cliente) => {
+    const { rows } = await cliente.query(
+      'SELECT id, id_titulo_escritura FROM archivo WHERE id = $1 FOR UPDATE',
+      [id],
+    );
+    const actual = rows[0];
+    if (!actual) return null;
+
+    const asignaciones = [];
+    const parametros = [];
+    const agregar = (columna, valor) => {
+      parametros.push(valor);
+      asignaciones.push(`${columna} = $${parametros.length}`);
+    };
+
+    for (const [campo, columna] of Object.entries(CAMPOS_ACTUALIZABLES)) {
+      if (cambios[campo] !== undefined) {
+        agregar(columna, cambios[campo]);
+      }
+    }
+    agregar('id_usuario_actualizacion', idUsuario);
+    asignaciones.push('fecha_actualizacion = now()');
+
+    parametros.push(id);
+    await cliente.query(
+      `UPDATE archivo SET ${asignaciones.join(', ')} WHERE id = $${parametros.length}`,
+      parametros,
+    );
+
+    if (cambios.titulo !== undefined) {
+      await cliente.query(
+        'UPDATE titulo_escritura SET nombre = $1 WHERE id = $2',
+        [cambios.titulo, actual.id_titulo_escritura],
+      );
+    }
+
+    if (cambios.interesados !== undefined) {
+      await guardarInteresados(cliente, actual.id_titulo_escritura, cambios.interesados);
+    }
+
+    return { id: actual.id };
+  });
 }
 
 export async function obtenerArchivo(id) {

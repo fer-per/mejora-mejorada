@@ -23,6 +23,7 @@ const esquemaEnv = z
     JWT_EXPIRA_EN: z.string().default('8h'),
     BLOQUEO_INTENTOS: z.coerce.number().int().positive().default(5),
     BLOQUEO_MINUTOS: z.coerce.number().int().positive().default(15),
+    INGESTA_MAX_MB: z.coerce.number().int().positive().default(50),
     RUTA_REPOSITORIO: z.string().default('../storage/repositorio'),
     RUTA_FRONTEND: z.string().default('../frontend/dist'),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
@@ -87,6 +88,9 @@ export const config = {
   bloqueo: {
     intentosMaximos: env.BLOQUEO_INTENTOS,
     minutosBloqueo: env.BLOQUEO_MINUTOS,
+  },
+  ingesta: {
+    maxBytes: env.INGESTA_MAX_MB * 1024 * 1024,
   },
   rutas: {
     repositorio: path.resolve(process.cwd(), env.RUTA_REPOSITORIO),

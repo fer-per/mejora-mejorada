@@ -151,6 +151,8 @@ CREATE TABLE archivo (
     id_titulo_escritura   INTEGER      NOT NULL REFERENCES titulo_escritura (id),
     id_responsable_descripcion INTEGER  REFERENCES responsable_descripcion (id),
     id_usuario_carga      INTEGER      REFERENCES usuario (id),
+    id_usuario_actualizacion INTEGER   REFERENCES usuario (id),
+    fecha_actualizacion   TIMESTAMP,
     tipologia_documental  VARCHAR(100) NOT NULL,
     serie                 VARCHAR(150),
     subserie              VARCHAR(150),
@@ -164,6 +166,8 @@ CREATE TABLE archivo (
     fecha_carga           TIMESTAMP    NOT NULL DEFAULT now(),
     ruta_archivo          VARCHAR(500) NOT NULL UNIQUE,
     ruta_miniatura        VARCHAR(500),
+    nombre_original       VARCHAR(255),
+    tamano_bytes          BIGINT,
     observaciones         TEXT,
     ubicacion_fisica      VARCHAR(150)
 );

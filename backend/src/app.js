@@ -7,6 +7,8 @@ import { config } from './config/env.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import documentosRoutes from './modules/documentos/documentos.routes.js';
 import catalogosRoutes from './modules/catalogos/catalogos.routes.js';
+import auditoriaRoutes from './modules/auditoria/auditoria.routes.js';
+import usuariosRoutes from './modules/usuarios/usuarios.routes.js';
 import { manejarErrores, noEncontrado } from './middlewares/error-handler.js';
 
 export function crearApp() {
@@ -52,6 +54,8 @@ export function crearApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/documentos', documentosRoutes);
   app.use('/api/catalogos', catalogosRoutes);
+  app.use('/api/auditoria', auditoriaRoutes);
+  app.use('/api/usuarios', usuariosRoutes);
 
   app.use('/api', noEncontrado);
 
