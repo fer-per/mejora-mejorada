@@ -23,21 +23,27 @@ tesisrevisinon/
 
 - **Stack**: Node.js ≥ 20, Express 4, PostgreSQL (`pg`), JWT (`jsonwebtoken`),
   hash de contraseñas con `bcryptjs`, validación con `zod` y cabeceras con `helmet`.
-- **Módulos**: `auth` (login/logout, bloqueo por intentos), `documentos` (búsqueda
-  simple y avanzada, detalle, edición), `catalogos` (fondos, series, tipologías) y
-  `auditoria`.
+- **Módulos**: `auth` (login/logout, bloqueo por intentos), `usuarios` (registro,
+  edición, perfiles y activación/desactivación), `documentos` (búsqueda simple y
+  avanzada, detalle, edición e ingesta), `catalogos` (fondos, series, tipologías) y
+  `auditoria` (registro y consulta del historial).
 - **Búsqueda de texto completo**: usa `tsvector`, `unaccent` y `pg_trgm` para admitir
   búsquedas insensibles a mayúsculas y acentos (p. ej. "escritura" encuentra "ESCRITURA").
 - **Seguridad**: JWT con expiración, tres perfiles (`ADMINISTRADOR`, `ARCHIVISTA`,
   `USUARIO_EXTERNO`) y bloqueo temporal de la cuenta tras 5 intentos fallidos (HU-17).
 - **Auditoría**: registra en `registro_auditoria` los inicios de sesión, búsquedas,
-  consultas de detalle, visualizaciones y ediciones, con IP y user-agent.
+  consultas de detalle, visualizaciones, cargas, ediciones y operaciones sobre usuarios.
+- **Ingesta**: carga autenticada de PDF/A y TIFF (multipart, campo `archivo`) con
+  validación de extensión, MIME y firma binaria; registra ruta, fecha, usuario,
+  tamaño y nombre original, y resuelve automáticamente la jerarquía
+  fondo → protocolo → año → registro → título.
 
 ### Frontend (`frontend/`)
 
 - **Stack**: React 19, React Router 7, Vite 8 y Bootstrap 5.3.
-- **Vistas**: login, panel, consulta (búsqueda simple/avanzada con panel de filtros),
-  detalle del documento y estadísticas.
+- **Vistas**: login, consulta (búsqueda simple/avanzada con panel de filtros y detalle
+  del documento), ingesta documental (ADMIN/ARCHIVISTA) y gestión de usuarios (ADMIN).
+  La navegación se adapta al perfil autenticado y se conserva en dispositivos móviles.
 - **Visor de documentos**: PDF en `iframe` y TIFF decodificado en cliente con `utif2`
   y dibujado en `canvas` (soporte multipágina); las miniaturas se solicitan
   autenticadas como blob.
@@ -77,6 +83,7 @@ Scripts disponibles:
 - `npm run db:reset` — recrea el esquema y carga los datos de ejemplo.
 - `npm run db:schema` — solo crea el esquema.
 - `npm run db:seed` — solo carga los datos de ejemplo.
+- `npm run db:migrar` — aplica las migraciones pendientes de `database/migrations/` sin recrear los datos.
 - `npm run storage:subir` — sube el repositorio local (`storage/repositorio`) a Cloudflare R2.
 - `npm run dev` — arranque con recarga automática (`node --watch`).
 
@@ -133,6 +140,7 @@ Cargadas por `database/seed.sql`:
 | GET    | `/api/salud`                      | Estado del servicio                    |
 | POST   | `/api/auth/login`                 | Inicio de sesión (devuelve JWT)        |
 | POST   | `/api/auth/logout`                | Cierre de sesión (auditado)            |
+| POST   | `/api/documentos`                 | Ingesta de PDF/A o TIFF (ADMIN/ARCHIVISTA) |
 | GET    | `/api/documentos/busqueda/simple` | Búsqueda de texto completo             |
 | GET    | `/api/documentos/busqueda/avanzada` | Búsqueda con filtros combinados      |
 | GET    | `/api/documentos/:id`             | Detalle descriptivo (ISAD-G)           |
@@ -142,7 +150,26 @@ Cargadas por `database/seed.sql`:
 | GET    | `/api/catalogos/fondos`           | Catálogo de fondos                     |
 | GET    | `/api/catalogos/series`           | Catálogo de series                     |
 | GET    | `/api/catalogos/tipologias`       | Catálogo de tipologías documentales    |
+| GET    | `/api/usuarios`                   | Listado de usuarios (solo ADMIN)       |
+| POST   | `/api/usuarios`                   | Registro de usuario (solo ADMIN)       |
+| GET    | `/api/usuarios/:id`               | Detalle de usuario (solo ADMIN)        |
+| PUT    | `/api/usuarios/:id`               | Edición de usuario (solo ADMIN)        |
+| PATCH  | `/api/usuarios/:id/estado`        | Activar/desactivar usuario (solo ADMIN)|
+| DELETE | `/api/usuarios/:id`               | Desactivación lógica (solo ADMIN)      |
 | GET    | `/api/auditoria`                  | Registro de auditoría (solo ADMIN)     |
+| GET    | `/api/auditoria/:id`              | Detalle de una acción auditada (ADMIN) |
+
+### Ingesta documental
+
+La carga usa `multipart/form-data` con el archivo en el campo `archivo` y los metadatos
+como campos de texto (`id_fondo`, `protocolo`, `anio`, `registro`, `tipologia`, etc.).
+La validación es básica: extensión permitida (`.pdf`, `.tif`, `.tiff`), tipo MIME y
+firma binaria (`%PDF-` para PDF y `II*\0`/`MM\0*` para TIFF). El tamaño máximo se
+configura con `INGESTA_MAX_MB` (50 MB por defecto).
+
+Alcance del piloto: no se ejecuta OCR/HTR ni se valida la resolución DPI o la
+conformidad PDF/A con veraPDF; tampoco se generan miniaturas automáticamente para los
+archivos cargados. Estas comprobaciones quedan documentadas como trabajo futuro.
 
 ## Despliegue en producción
 
@@ -153,7 +180,7 @@ Nginx instalados:
 cd frontend && npm ci && npm run build
 cd ../backend && npm ci
 cp .env.example .env        # ajuste credenciales, JWT_SECRET y R2
-npm run db:reset
+npm run db:reset            # instalación nueva; use db:migrar en actualizaciones
 npm run storage:subir
 pm2 start ecosystem.config.cjs
 pm2 startup && pm2 save
