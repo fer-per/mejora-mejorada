@@ -45,9 +45,9 @@ function mensajeError(datos) {
 }
 
 async function peticion(ruta, opciones = {}) {
-  const { metodo = 'GET', cuerpo } = opciones;
+  const { metodo = 'GET', cuerpo, formulario } = opciones;
   const cabeceras = { Accept: 'application/json' };
-  if (cuerpo) cabeceras['Content-Type'] = 'application/json';
+  if (cuerpo && !formulario) cabeceras['Content-Type'] = 'application/json';
   const token = obtenerToken();
   if (token) cabeceras.Authorization = `Bearer ${token}`;
 
@@ -56,7 +56,7 @@ async function peticion(ruta, opciones = {}) {
     respuesta = await fetch(ruta, {
       method: metodo,
       headers: cabeceras,
-      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+      body: formulario ?? (cuerpo ? JSON.stringify(cuerpo) : undefined),
     });
   } catch {
     throw new Error('No se pudo conectar con el servidor.');
@@ -221,4 +221,39 @@ export async function obtenerDocumento(id) {
 
 export function obtenerCatalogos() {
   return peticion('/api/catalogos');
+}
+
+export async function listarUsuarios({ q = '', perfil = '', estado = '', pagina = 1, porPagina = 20 } = {}) {
+  const parametros = new URLSearchParams();
+  if (q) parametros.set('q', q);
+  if (perfil) parametros.set('perfil', perfil);
+  if (estado) parametros.set('estado', estado);
+  parametros.set('pagina', String(pagina));
+  parametros.set('por_pagina', String(porPagina));
+  return peticion(`/api/usuarios?${parametros}`);
+}
+
+export function obtenerUsuario(id) {
+  return peticion(`/api/usuarios/${id}`);
+}
+
+export function crearUsuario(datos) {
+  return peticion('/api/usuarios', { metodo: 'POST', cuerpo: datos });
+}
+
+export function actualizarUsuario(id, datos) {
+  return peticion(`/api/usuarios/${id}`, { metodo: 'PUT', cuerpo: datos });
+}
+
+export function cambiarEstadoUsuario(id, estado) {
+  return peticion(`/api/usuarios/${id}/estado`, { metodo: 'PATCH', cuerpo: { estado } });
+}
+
+export function desactivarUsuario(id) {
+  return peticion(`/api/usuarios/${id}`, { metodo: 'DELETE' });
+}
+
+export async function crearDocumento(formulario) {
+  const datos = await peticion('/api/documentos', { metodo: 'POST', formulario });
+  return normalizarFicha(datos.documento);
 }
