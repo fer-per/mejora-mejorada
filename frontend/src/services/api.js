@@ -257,3 +257,22 @@ export async function crearDocumento(formulario) {
   const datos = await peticion('/api/documentos', { metodo: 'POST', formulario });
   return normalizarFicha(datos.documento);
 }
+
+export function listarAuditoria({ tipoAccion = '', idUsuario = '', desde = '', hasta = '', pagina = 1, porPagina = 20 } = {}) {
+  const parametros = new URLSearchParams();
+  if (tipoAccion) parametros.set('tipo_accion', tipoAccion);
+  if (idUsuario) parametros.set('id_usuario', String(idUsuario));
+  if (desde) parametros.set('desde', desde);
+  if (hasta) parametros.set('hasta', hasta);
+  parametros.set('pagina', String(pagina));
+  parametros.set('por_pagina', String(porPagina));
+  return peticion(`/api/auditoria?${parametros}`);
+}
+
+export function listarUsuariosAuditoria() {
+  return peticion('/api/auditoria/usuarios');
+}
+
+export function obtenerAccionAuditoria(id) {
+  return peticion(`/api/auditoria/${id}`);
+}

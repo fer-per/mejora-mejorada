@@ -16,6 +16,9 @@ Esta carpeta contiene las capturas que se incorporan al capítulo IV de la tesis
 | `fig-iv-09-ui-visor.png` | Captura real del visor PDF/A o TIFF | Generado |
 | `fig-iv-10-jmeter-grafico.png` | Gráfico de tiempos de respuesta de JMeter | Pendiente de instalar/ejecutar JMeter |
 | `fig-iv-11-ui-movil.png` | Captura real opcional en vista móvil (390 px) | Generado |
+| `fig-iv-12-ui-usuarios.png` | Captura real del panel de gestión de usuarios (ADMIN) | Generado |
+| `fig-iv-13-ui-ingesta.png` | Captura real del formulario de ingesta documental | Generado |
+| `fig-iv-14-ui-auditoria.png` | Captura real del historial de auditoría (ADMIN) | Generado |
 
 ## 1. Evidencia de pruebas unitarias
 
@@ -70,6 +73,9 @@ Capturas esperadas:
 - `fig-iv-07-ui-login.png`
 - `fig-iv-08-ui-busqueda.png`
 - `fig-iv-09-ui-visor.png`
+- `fig-iv-12-ui-usuarios.png`
+- `fig-iv-13-ui-ingesta.png`
+- `fig-iv-14-ui-auditoria.png`
 
 Variables opcionales:
 
@@ -78,8 +84,9 @@ $env:BASE_URL = "http://localhost:5173"
 $env:UI_USUARIO = "anaquispe"
 $env:UI_CONTRASENA = "Admin123!"
 $env:UI_CONSULTA = "aguas"
-$env:CAPTURAR_MOVIL = "1"   # genera fig-iv-11-ui-movil.png a 390 px
-$env:HEADED = "1"           # muestra el navegador durante la captura
+$env:CAPTURAR_MOVIL = "1"     # genera fig-iv-11-ui-movil.png a 390 px
+$env:CAPTURAR_MODULOS = "0"   # omite las capturas de usuarios, ingesta y auditoría
+$env:HEADED = "1"             # muestra el navegador durante la captura
 ```
 
 Si solo se desea la pantalla de login (no requiere backend ni PostgreSQL):

@@ -60,6 +60,17 @@ export async function listarAcciones({ tipoAccion, idUsuario, desde, hasta, pagi
   return { total: conteo[0].total, filas: rows };
 }
 
+export async function listarUsuariosAuditados() {
+  const { rows } = await consultar(
+    `SELECT DISTINCT u.id, u.nombre_usuario
+       FROM registro_auditoria ra
+       JOIN usuario u ON u.id = ra.id_usuario
+      ORDER BY u.nombre_usuario`,
+  );
+
+  return rows.map((fila) => ({ id: fila.id, nombreUsuario: fila.nombre_usuario }));
+}
+
 export async function obtenerAccion(id) {
   const { rows } = await consultar(
     `SELECT ${COLUMNAS} ${RELACIONES} WHERE ra.id = $1`,

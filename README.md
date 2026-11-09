@@ -42,8 +42,9 @@ tesisrevisinon/
 
 - **Stack**: React 19, React Router 7, Vite 8 y Bootstrap 5.3.
 - **Vistas**: login, consulta (búsqueda simple/avanzada con panel de filtros y detalle
-  del documento), ingesta documental (ADMIN/ARCHIVISTA) y gestión de usuarios (ADMIN).
-  La navegación se adapta al perfil autenticado y se conserva en dispositivos móviles.
+  del documento), ingesta documental (ADMIN/ARCHIVISTA), gestión de usuarios (ADMIN) y
+  auditoría con filtros y detalle de cada acción (ADMIN/ARCHIVISTA). La navegación se
+  adapta al perfil autenticado y se conserva en dispositivos móviles.
 - **Visor de documentos**: PDF en `iframe` y TIFF decodificado en cliente con `utif2`
   y dibujado en `canvas` (soporte multipágina); las miniaturas se solicitan
   autenticadas como blob.
@@ -156,8 +157,9 @@ Cargadas por `database/seed.sql`:
 | PUT    | `/api/usuarios/:id`               | Edición de usuario (solo ADMIN)        |
 | PATCH  | `/api/usuarios/:id/estado`        | Activar/desactivar usuario (solo ADMIN)|
 | DELETE | `/api/usuarios/:id`               | Desactivación lógica (solo ADMIN)      |
-| GET    | `/api/auditoria`                  | Registro de auditoría (solo ADMIN)     |
-| GET    | `/api/auditoria/:id`              | Detalle de una acción auditada (ADMIN) |
+| GET    | `/api/auditoria`                  | Registro de auditoría (ADMIN/ARCHIVISTA) |
+| GET    | `/api/auditoria/usuarios`         | Usuarios de la auditoría (ADMIN/ARCHIVISTA) |
+| GET    | `/api/auditoria/:id`              | Detalle de una acción auditada         |
 
 ### Ingesta documental
 

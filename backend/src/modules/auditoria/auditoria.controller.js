@@ -6,6 +6,11 @@ export const listar = manejar(async (req, res) => {
   res.json(resultado);
 });
 
+export const listarUsuarios = manejar(async (req, res) => {
+  const resultado = await servicio.listarUsuarios();
+  res.json(resultado);
+});
+
 export const obtener = manejar(async (req, res) => {
   const registro = await servicio.obtener(req.datos.id);
   res.json({ registro });

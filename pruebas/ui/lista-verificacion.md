@@ -32,9 +32,51 @@ Navegadores: Chrome, Edge y Firefox. Resoluciones: 320, 768 y 1280 px
 | UI-23 | Responsividad 1280 px | Repetir UI-01, UI-07 y UI-14 a 1280 px | Distribución en dos columnas estable | | |
 | UI-24 | XSS en metadatos | Insertar un título con `<script>alert(1)</script>` en la BD y buscarlo | Se muestra como texto; el script no se ejecuta | | |
 | UI-25 | Accesibilidad básica | Navegar el login y el buscador solo con teclado | Foco visible, labels asociados y botones activables con Enter | | |
+| UI-26 | Visibilidad de enlaces por perfil | Iniciar sesión como `anaquispe`, revisar la barra; cerrar sesión y repetir con `lmamani` y `cflores` | ADMIN ve Consulta, Ingesta, Usuarios y Auditoría; ARCHIVISTA ve Consulta, Ingesta y Auditoría; VIEWER solo ve Consulta | | |
+| UI-27 | Protección de rutas por perfil | Iniciar sesión como `cflores` (VIEWER) y abrir directamente `/usuarios`, `/ingesta` y `/auditoria` | Cada intento redirige a `/busqueda`; no se muestra el contenido restringido | | |
+| UI-28 | Listado y alta de usuarios | Como ADMIN abrir `/usuarios`; buscar por nombre o usuario, filtrar por perfil y estado, navegar la paginación y pulsar «Nuevo usuario» | Tabla con usuario, nombre completo, correo, perfil y estado; filtros y paginación funcionan; el modal de alta muestra todos los campos | | |
+| UI-29 | Validaciones de alta y edición de usuario | En el modal enviar campos vacíos; registrar un `nombre_usuario` existente; usar una contraseña de menos de 8 caracteres; editar un usuario sin cambiar la contraseña | El navegador exige los campos obligatorios y el formato de usuario; el backend informa el duplicado; se exige contraseña en el alta y se permite dejarla vacía en la edición | | |
+| UI-30 | Activación y desactivación de usuarios | En `/usuarios` intentar desactivar la cuenta con la que se inició sesión; desactivar y reactivar un usuario de prueba; intentar desactivar al único administrador activo | El botón de autodesactivación está deshabilitado; la desactivación pide confirmación y muestra mensaje de éxito; el sistema impide quedar sin administradores activos | | |
+| UI-31 | Validaciones del formulario de ingesta | Abrir `/ingesta`; revisar catálogos de fondo, serie y tipología; agregar y quitar interesados; enviar sin archivo; seleccionar un `.txt` y luego un archivo mayor de 50 MB | Catálogos cargados, interesados dinámicos funcionales, mensaje «Seleccione el archivo digital que desea ingresar», rechazo por extensión y por tamaño; no se valida DPI, PDF/A ni OCR (limitación del piloto) | | |
+| UI-32 | Ingesta exitosa y aparición en búsqueda | Completar fondo, protocolo, año, registro y tipología; adjuntar un PDF o TIFF válido menor de 50 MB; registrar y buscar el título en `/busqueda` | Mensaje de éxito con el identificador del documento, formulario limpio y documento localizable en la búsqueda con su ficha; si no se desea crear datos, validar la solicitud multipart en la pestaña Red y consultar un documento existente | | |
+| UI-33 | Filtros, paginación y detalle de auditoría | Como ADMIN y como ARCHIVISTA abrir `/auditoria`; filtrar por tipo de acción, usuario y rango de fechas; navegar la paginación y pulsar «Ver» en un registro | Ambos perfiles ven el listado filtrado y paginado; el modal de detalle muestra fecha, acción, usuario y descripción; no existen controles de edición ni eliminación | | |
+| UI-34 | Menú móvil a 390 px | Con DevTools a 390 px, iniciar sesión como ADMIN y revisar `.navbar-movil-menu`; repetir con ARCHIVISTA y VIEWER | ADMIN muestra 4 secciones (Consulta, Ingesta, Usuarios, Auditoría); ARCHIVISTA muestra 3 (Consulta, Ingesta, Auditoría); VIEWER muestra solo Consulta; sin desbordes horizontales | | |
+
+## Prueba automatizada de humo
+
+La prueba de humo recorre los flujos críticos de la interfaz sin sustituir la lista de verificación manual. Se ejecuta desde la raíz del proyecto con:
+
+```text
+node pruebas/ui/verificar-ui.mjs
+```
+
+### Requisitos
+
+- PostgreSQL en ejecución con la base `siarc_db` creada y cargada (`npm.cmd run db:reset`).
+- API en `http://127.0.0.1:4000`.
+- Frontend en `http://127.0.0.1:5173`.
+- Chrome o Edge instalados.
+- Dependencias de automatización instaladas con `npm.cmd install` dentro de `pruebas/evidencias`.
+
+### Cobertura
+
+- Inicio de sesión con el usuario ADMIN `anaquispe`.
+- Navegación y visibilidad de enlaces según perfil.
+- Listado, filtros y apertura del modal de alta en `/usuarios`.
+- Carga de catálogos y apertura del formulario en `/ingesta`.
+- Listado, filtro y modal de detalle en `/auditoria`.
+- Menú móvil a 390 px.
+- Consulta del historial por parte del ARCHIVISTA, incluido el filtro por usuario.
+- Redirecciones de VIEWER desde `/usuarios`, `/ingesta` y `/auditoria` hacia `/busqueda`.
+
+### Alcance
+
+La prueba no crea usuarios ni documentos: solo abre formularios, consulta datos existentes y verifica redirecciones y visibilidad. Por ello puede ejecutarse sobre la base semilla sin alterar su contenido.
 
 ## Registro de ejecución
 
 | Fecha | Ejecutor | Navegador | Versión | Casos ejecutados | Aprobados | Observaciones |
 |-------|----------|-----------|---------|------------------|-----------|---------------|
 | | | | | | | |
+
+> Nota: complete una fila por ejecución con la evidencia correspondiente. No registre resultados aprobados sin haber ejecutado los casos ni la prueba automatizada.

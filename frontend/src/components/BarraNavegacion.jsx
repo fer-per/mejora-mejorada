@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { IconoDocumento, IconoLibro, IconoSalir, IconoUsuario } from './Iconos.jsx';
+import { IconoDocumento, IconoHistorial, IconoLibro, IconoSalir, IconoUsuario } from './Iconos.jsx';
 
 const ETIQUETA_PERFIL = {
   admin: 'Administrador',
@@ -17,6 +17,9 @@ export default function BarraNavegacion() {
   }
   if (usuario?.role === 'admin') {
     enlaces.push({ to: '/usuarios', etiqueta: 'Usuarios', icono: <IconoUsuario size={15} /> });
+  }
+  if (usuario?.role === 'admin' || usuario?.role === 'archivero') {
+    enlaces.push({ to: '/auditoria', etiqueta: 'Auditoría', icono: <IconoHistorial size={15} /> });
   }
 
   const claseEnlace = ({ isActive }) => `navbar-enlace ${isActive ? 'activo' : ''}`;

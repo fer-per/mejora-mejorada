@@ -37,13 +37,13 @@ backend/tests/
 ├─ unit/
 │  ├─ esquemas.test.js       # Zod: login, búsqueda simple/avanzada, ids
 │  ├─ middlewares.test.js    # authorizar, rate-limit, error-handler (SEG-10)
-│  └─ utilidades.test.js     # rutas del repositorio, nombres de descarga, almacenamiento
+│  └─ utilidades.test.js     # rutas, descargas, almacenamiento, validación PDF/TIFF y títulos
 ├─ api/
 │  ├─ auth.test.js           # AUT-01 … AUT-25
 │  ├─ busqueda.test.js       # BUS y AVZ
 │  ├─ detalle-archivo.test.js# DET y ARC
-│  ├─ catalogos-auditoria.test.js # CAT y AUD
-│  ├─ edicion-auditoria.test.js # EDT y consulta de auditoría
+│  ├─ catalogos-auditoria.test.js # CAT y registro de auditoría
+│  ├─ edicion-auditoria.test.js # EDT y consulta de auditoría (AUD-20 … AUD-28)
 │  ├─ usuarios.test.js       # USR
 │  ├─ ingesta.test.js        # ING
 │  └─ seguridad.test.js      # AZ y SEG
@@ -64,7 +64,8 @@ backend/tests/
 | AZ / SEG | `unit/middlewares.test.js`, `api/seguridad.test.js` |
 | BUS / AVZ | `unit/esquemas.test.js`, `api/busqueda.test.js` |
 | DET / ARC | `api/detalle-archivo.test.js` |
-| CAT / AUD | `api/catalogos-auditoria.test.js` |
+| CAT | `api/catalogos-auditoria.test.js` |
+| AUD (registro) | `api/auth.test.js`, `api/catalogos-auditoria.test.js` |
 | EDT / AUD (consulta) | `api/edicion-auditoria.test.js` |
 | USR | `api/usuarios.test.js` |
 | ING | `api/ingesta.test.js`, `unit/utilidades.test.js` |

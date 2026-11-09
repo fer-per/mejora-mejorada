@@ -36,6 +36,11 @@ export async function listar(datos) {
   };
 }
 
+export async function listarUsuarios() {
+  const usuarios = await repositorio.listarUsuariosAuditados();
+  return { usuarios };
+}
+
 export async function obtener(id) {
   const fila = await repositorio.obtenerAccion(id);
   if (!fila) {

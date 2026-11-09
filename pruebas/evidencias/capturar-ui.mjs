@@ -101,6 +101,28 @@ try {
     console.warn('No se encontro ningun documento para abrir el visor.');
   }
 
+  if (process.env.CAPTURAR_MODULOS !== '0') {
+    await page.locator('.navbar-menu .navbar-enlace', { hasText: 'Usuarios' }).click();
+    await page.waitForURL('**/usuarios');
+    await page.waitForSelector('table.tabla-usuarios tbody tr');
+    await page.waitForTimeout(700);
+    await capturar(page, 'fig-iv-12-ui-usuarios.png', { fullPage: true });
+
+    await page.locator('.navbar-menu .navbar-enlace', { hasText: 'Ingesta' }).click();
+    await page.waitForURL('**/ingesta');
+    await page.waitForSelector('#id_fondo');
+    await page.waitForFunction(() => document.querySelectorAll('#id_fondo option').length > 1);
+    await page.waitForTimeout(700);
+    await capturar(page, 'fig-iv-13-ui-ingesta.png', { fullPage: true });
+
+    await page.locator('.navbar-menu .navbar-enlace', { hasText: 'Auditoría' }).click();
+    await page.waitForURL('**/auditoria');
+    await page.waitForSelector('.panel-resultados');
+    await page.waitForFunction(() => !document.querySelector('.estado-resultados .spinner-border'));
+    await page.waitForTimeout(700);
+    await capturar(page, 'fig-iv-14-ui-auditoria.png', { fullPage: true });
+  }
+
   if (process.env.CAPTURAR_MOVIL === '1') {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE_URL}/busqueda`, { waitUntil: 'domcontentloaded' });
