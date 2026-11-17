@@ -6,10 +6,13 @@ import { autorizar, PERFILES, todosPerfiles } from '../../middlewares/authorize.
 import { validar } from '../../middlewares/validate.js';
 import {
   esquemaActualizarDocumento,
+  esquemaAnularDocumento,
   esquemaBusquedaAvanzada,
   esquemaBusquedaSimple,
+  esquemaHistorial,
   esquemaId,
   esquemaIngestaDocumento,
+  esquemaRevertir,
 } from './documentos.schema.js';
 import * as controlador from './documentos.controller.js';
 
@@ -41,6 +44,45 @@ router.put(
   validar(esquemaId, 'params'),
   validar(esquemaActualizarDocumento, 'body'),
   controlador.actualizar,
+);
+
+router.put(
+  '/:id/archivo',
+  autorizar(PERFILES.ADMINISTRADOR),
+  validar(esquemaId, 'params'),
+  subida.single('archivo'),
+  controlador.reemplazarArchivo,
+);
+
+router.post(
+  '/:id/anular',
+  autorizar(PERFILES.ADMINISTRADOR),
+  validar(esquemaId, 'params'),
+  validar(esquemaAnularDocumento, 'body'),
+  controlador.anular,
+);
+
+router.post(
+  '/:id/restaurar',
+  autorizar(PERFILES.ADMINISTRADOR),
+  validar(esquemaId, 'params'),
+  controlador.restaurar,
+);
+
+router.get(
+  '/:id/historial',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  validar(esquemaId, 'params'),
+  validar(esquemaHistorial, 'query'),
+  controlador.listarHistorial,
+);
+
+router.post(
+  '/:id/historial/:idCambio/revertir',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  validar(esquemaId, 'params'),
+  validar(esquemaRevertir, 'body'),
+  controlador.revertirCambio,
 );
 
 export default router;

@@ -1,3 +1,5 @@
+﻿import { normalizarFicha, normalizarResultado } from './normalizadores.js';
+
 const CLAVE_TOKEN = 'siarc_ara_piloto_token';
 const CLAVE_USUARIO = 'siarc_ara_piloto_usuario';
 export const EVENTO_SESION = 'siarc-ara:sesion-invalida';
@@ -41,10 +43,10 @@ function normalizarUsuario(usuario) {
 }
 
 function mensajeError(datos) {
-  return datos?.error?.mensaje ?? datos?.mensaje ?? 'No se pudo completar la operación.';
+  return datos?.error?.mensaje ?? datos?.mensaje ?? 'No se pudo completar la operaciÃ³n.';
 }
 
-async function peticion(ruta, opciones = {}) {
+export async function peticion(ruta, opciones = {}) {
   const { metodo = 'GET', cuerpo, formulario } = opciones;
   const cabeceras = { Accept: 'application/json' };
   if (cuerpo && !formulario) cabeceras['Content-Type'] = 'application/json';
@@ -91,7 +93,7 @@ export async function apiArchivo(ruta) {
   if (respuesta.status === 401) {
     limpiarSesion();
     window.dispatchEvent(new Event(EVENTO_SESION));
-    throw new Error('Sesión no válida o expirada. Inicie sesión nuevamente.');
+    throw new Error('SesiÃ³n no vÃ¡lida o expirada. Inicie sesiÃ³n nuevamente.');
   }
 
   if (!respuesta.ok) {
@@ -100,70 +102,6 @@ export async function apiArchivo(ruta) {
   }
 
   return respuesta.blob();
-}
-
-function listaDescriptores(descriptores) {
-  if (!descriptores) return [];
-  if (Array.isArray(descriptores)) return descriptores;
-  return String(descriptores)
-    .split(',')
-    .map((descriptor) => descriptor.trim())
-    .filter(Boolean);
-}
-
-function normalizarResumen(documento) {
-  return {
-    id: documento.id,
-    codigo: documento.registro ? `ARC-${documento.registro}` : `ARC-${String(documento.id).padStart(8, '0')}`,
-    titulo: documento.titulo,
-    tipo: documento.tipologia,
-    tipologia: documento.tipologia,
-    fondo: documento.fondo,
-    serie: documento.serie,
-    subserie: documento.subserie,
-    escribano: null,
-    protocolo: documento.protocolo,
-    registro: documento.registro,
-    anio: documento.anio,
-    fecha: documento.fecha,
-    folios: documento.folios == null ? '' : String(documento.folios),
-    lugar: null,
-    conservacion: documento.estadoConservacion ?? null,
-    formato: documento.formato,
-    repositorio: documento.repositorio,
-    relevancia: documento.relevancia,
-    miniatura_url: documento.miniaturaUrl ?? null,
-    archivo_url: documento.archivoUrl ?? `/api/documentos/${documento.id}/archivo`,
-    digitalizado:
-      documento.digitalizado ?? Boolean(documento.archivoUrl ?? documento.miniaturaUrl ?? documento.id),
-    descriptores: listaDescriptores(documento.descriptores),
-    alcance: documento.alcanceContenido ?? null,
-  };
-}
-
-function normalizarFicha(documento) {
-  const resumen = normalizarResumen(documento);
-  return {
-    ...resumen,
-    lugar: documento.ubicacionFisica ?? null,
-    observaciones: documento.observaciones ?? null,
-    fechaCarga: documento.fechaCarga ?? null,
-    usuarioCarga: documento.usuarioCarga ?? null,
-    responsableDescripcion: documento.responsableDescripcion ?? null,
-    interesados: documento.interesados ?? [],
-  };
-}
-
-function normalizarResultado(datos) {
-  const porPagina = datos.porPagina ?? 10;
-  const total = datos.total ?? 0;
-  return {
-    total,
-    pagina: datos.pagina ?? 1,
-    porPagina,
-    paginas: porPagina > 0 ? Math.ceil(total / porPagina) : 0,
-    resultados: (datos.resultados ?? []).map(normalizarResumen),
-  };
 }
 
 export async function iniciarSesion(username, password) {

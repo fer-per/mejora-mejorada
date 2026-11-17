@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import { IconoCerrar, IconoDocumento, IconoImagen } from './Iconos.jsx';
 import VisorDocumento from './VisorDocumento.jsx';
 
@@ -17,6 +19,10 @@ function Dato({ etiqueta, valor }) {
 }
 
 export default function PanelDetalle({ documento, cargando, onCerrar }) {
+  const navigate = useNavigate();
+  const { usuario } = useAuth();
+  const puedeEditar = usuario?.role === 'admin' || usuario?.role === 'archivero';
+
   if (cargando) {
     return (
       <aside className="panel-detalle panel-detalle-vacio">
@@ -49,6 +55,18 @@ export default function PanelDetalle({ documento, cargando, onCerrar }) {
           <IconoCerrar />
         </button>
       </div>
+
+      {puedeEditar && !documento.anulado && (
+        <div className="panel-acciones">
+          <button
+            type="button"
+            className="btn btn-sm boton-secundario"
+            onClick={() => navigate(`/gestion?documento=${documento.id}`)}
+          >
+            Editar documento
+          </button>
+        </div>
+      )}
 
       <div className={`panel-imagen ${documento.digitalizado ? 'panel-imagen-visor' : ''}`}>
         {documento.digitalizado ? (

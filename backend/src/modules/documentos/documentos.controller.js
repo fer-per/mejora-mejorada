@@ -53,6 +53,44 @@ export const actualizar = manejar(async (req, res) => {
   res.json({ documento });
 });
 
+export const anular = manejar(async (req, res) => {
+  const documento = await servicio.anularDocumento(Number(req.params.id), req.datos, req.usuario);
+  res.json({ documento });
+});
+
+export const restaurar = manejar(async (req, res) => {
+  const documento = await servicio.restaurarDocumento(Number(req.params.id), req.usuario);
+  res.json({ documento });
+});
+
+export const reemplazarArchivo = manejar(async (req, res) => {
+  const documento = await servicio.reemplazarArchivo(
+    Number(req.params.id),
+    req.file,
+    req.usuario,
+  );
+  res.json({ documento });
+});
+
+export const listarHistorial = manejar(async (req, res) => {
+  const resultado = await servicio.listarHistorialDocumento(
+    Number(req.params.id),
+    req.datos,
+    req.usuario,
+  );
+  res.json(resultado);
+});
+
+export const revertirCambio = manejar(async (req, res) => {
+  const resultado = await servicio.revertirCambioDocumento(
+    Number(req.params.id),
+    Number(req.params.idCambio),
+    req.usuario,
+    { forzar: req.datos.forzar === true || req.datos.forzar === 'true' },
+  );
+  res.json(resultado);
+});
+
 export const descargarArchivo = manejar(async (req, res, next) => {
   const preparado = await servicio.obtenerArchivo(req.datos.id, req.usuario);
   await transmitir(preparado, res, next, 'private, max-age=60');

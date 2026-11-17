@@ -9,6 +9,7 @@ import documentosRoutes from './modules/documentos/documentos.routes.js';
 import catalogosRoutes from './modules/catalogos/catalogos.routes.js';
 import auditoriaRoutes from './modules/auditoria/auditoria.routes.js';
 import usuariosRoutes from './modules/usuarios/usuarios.routes.js';
+import gestionRoutes from './modules/gestion/gestion.routes.js';
 import { manejarErrores, noEncontrado } from './middlewares/error-handler.js';
 
 export function crearApp() {
@@ -56,6 +57,7 @@ export function crearApp() {
   app.use('/api/catalogos', catalogosRoutes);
   app.use('/api/auditoria', auditoriaRoutes);
   app.use('/api/usuarios', usuariosRoutes);
+  app.use('/api/gestion', gestionRoutes);
 
   app.use('/api', noEncontrado);
 

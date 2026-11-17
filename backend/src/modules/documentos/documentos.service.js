@@ -7,10 +7,32 @@ import { existeObjeto, subirObjeto, usaAlmacenamientoRemoto } from '../../config
 import { errores } from '../../common/errors.js';
 import { tituloDesdeNombre, validarArchivoDigital } from '../../common/archivos.js';
 import { registrarAccion } from '../auditoria/auditoria.repository.js';
+import * as historial from '../gestion/historial.repository.js';
 import * as repositorio from './documentos.repository.js';
 
 function aIso(fecha) {
   return fecha instanceof Date ? fecha.toISOString() : fecha;
+}
+
+function puedeVerAnulados(usuario) {
+  return usuario?.perfil === 'ADMINISTRADOR' || usuario?.perfil === 'ARCHIVISTA';
+}
+
+function aDtoHistorial(fila) {
+  return {
+    id: fila.id,
+    idOperacion: fila.id_operacion,
+    idUsuario: fila.id_usuario,
+    usuario: fila.nombre_usuario ?? null,
+    idArchivo: fila.id_archivo,
+    entidad: fila.entidad,
+    idEntidad: fila.id_entidad,
+    tipoOperacion: fila.tipo_operacion,
+    idCambioOrigen: fila.id_cambio_origen,
+    antes: fila.antes,
+    despues: fila.despues,
+    fechaHora: aIso(fila.fecha_hora),
+  };
 }
 
 function aDtoResumen(fila) {
@@ -35,6 +57,7 @@ function aDtoResumen(fila) {
     relevancia: fila.relevancia == null ? null : Number(Number(fila.relevancia).toFixed(4)),
     digitalizado: Boolean(fila.ruta_archivo),
     miniaturaUrl: fila.ruta_miniatura ? `/api/documentos/${fila.id}/miniatura` : null,
+    anulado: Boolean(fila.anulado),
   };
 }
 
@@ -47,12 +70,16 @@ function aDtoDetalle(fila) {
     observaciones: fila.observaciones,
     ubicacionFisica: fila.ubicacion_fisica,
     fechaCarga: aIso(fila.fecha_carga),
+    fechaActualizacion: aIso(fila.fecha_actualizacion),
     usuarioCarga: fila.usuario_carga,
     responsableDescripcion: fila.responsable_descripcion,
     nombreOriginal: fila.nombre_original,
     tamanoBytes: fila.tamano_bytes == null ? null : Number(fila.tamano_bytes),
     interesados: fila.interesados ?? [],
     archivoUrl: `/api/documentos/${fila.id}/archivo`,
+    anulado: Boolean(fila.anulado),
+    fechaAnulacion: aIso(fila.fecha_anulacion),
+    motivoAnulacion: fila.motivo_anulacion,
   };
 }
 
@@ -191,7 +218,7 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
 
 export async function obtenerDetalle(id, usuario) {
   const documento = await repositorio.obtenerDocumento(id);
-  if (!documento) {
+  if (!documento || (documento.anulado && !puedeVerAnulados(usuario))) {
     throw errores.noEncontrado('Documento');
   }
   await registrarAccion({
@@ -203,13 +230,20 @@ export async function obtenerDetalle(id, usuario) {
 }
 
 export async function actualizarDocumento(id, datos, usuario) {
-  const resultado = await repositorio.actualizarDocumento(id, datos, usuario.id);
-  if (!resultado) {
+  const { fecha_actualizacion: fechaEsperada, ...cambios } = datos;
+  const resultado = await repositorio.actualizarDocumento(id, cambios, usuario.id, {
+    fechaEsperada,
+  });
+
+  if (resultado.noEncontrado) {
     throw errores.noEncontrado('Documento');
+  }
+  if (resultado.conflicto) {
+    throw errores.conflictoConcurrencia();
   }
 
   const documento = await repositorio.obtenerDocumento(id);
-  const campos = Object.keys(datos).filter((campo) => datos[campo] !== undefined);
+  const campos = Object.keys(cambios).filter((campo) => cambios[campo] !== undefined);
 
   await registrarAccion({
     idUsuario: usuario.id,
@@ -218,6 +252,150 @@ export async function actualizarDocumento(id, datos, usuario) {
   });
 
   return aDtoDetalle(documento);
+}
+
+export async function anularDocumento(id, datos, usuario) {
+  const resultado = await repositorio.anularDocumento(id, usuario.id, datos.motivo);
+  if (resultado.noEncontrado) {
+    throw errores.noEncontrado('Documento');
+  }
+  if (resultado.yaAnulado) {
+    throw errores.operacionNoPermitida('El documento ya se encuentra anulado.');
+  }
+
+  const documento = await repositorio.obtenerDocumento(id);
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'ANULACION_DOCUMENTO',
+    descripcion: `Anulación del documento #${id} "${documento.titulo}". Motivo: ${datos.motivo}.`,
+  });
+  return aDtoDetalle(documento);
+}
+
+export async function restaurarDocumento(id, usuario) {
+  const resultado = await repositorio.restaurarDocumento(id, usuario.id);
+  if (resultado.noEncontrado) {
+    throw errores.noEncontrado('Documento');
+  }
+  if (resultado.yaActivo) {
+    throw errores.operacionNoPermitida('El documento ya se encuentra activo.');
+  }
+
+  const documento = await repositorio.obtenerDocumento(id);
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'RESTAURACION_DOCUMENTO',
+    descripcion: `Restauración del documento #${id} "${documento.titulo}".`,
+  });
+  return aDtoDetalle(documento);
+}
+
+export async function reemplazarArchivo(id, archivoRecibido, usuario) {
+  if (!archivoRecibido) {
+    throw errores.archivoInvalido('Debe adjuntar un archivo PDF/A o TIFF en el campo "archivo".');
+  }
+
+  const documentoActual = await repositorio.obtenerDocumento(id);
+  if (!documentoActual) {
+    throw errores.noEncontrado('Documento');
+  }
+  if (documentoActual.anulado) {
+    throw errores.operacionNoPermitida('Restaure el documento antes de reemplazar su archivo.');
+  }
+
+  const { formato, extension, tipoContenido } = validarArchivoDigital({
+    buffer: archivoRecibido.buffer,
+    nombreOriginal: archivoRecibido.originalname,
+    tipoMime: archivoRecibido.mimetype,
+  });
+
+  const anio = documentoActual.fecha_produccion
+    ? String(documentoActual.fecha_produccion).slice(0, 4)
+    : String(new Date().getFullYear());
+  const rutaRelativa = `reemplazos/${anio}/${crypto.randomUUID()}.${extension}`;
+  const rutaLocal = await guardarArchivoDigital(rutaRelativa, archivoRecibido.buffer, tipoContenido);
+
+  let resultado;
+  try {
+    resultado = await repositorio.reemplazarArchivoDocumento(id, {
+      ruta: rutaRelativa,
+      nombreOriginal: archivoRecibido.originalname,
+      tamanoBytes: archivoRecibido.size,
+      formato,
+    }, usuario.id);
+  } catch (error) {
+    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    throw error;
+  }
+
+  if (resultado.noEncontrado) {
+    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    throw errores.noEncontrado('Documento');
+  }
+  if (resultado.anulado) {
+    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    throw errores.operacionNoPermitida('Restaure el documento antes de reemplazar su archivo.');
+  }
+
+  const documento = await repositorio.obtenerDocumento(id);
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'REEMPLAZO_ARCHIVO',
+    descripcion: `Reemplazo del archivo digital del documento #${id} "${documento.titulo}" por "${archivoRecibido.originalname}" (${formato}, ${archivoRecibido.size} bytes).`,
+  });
+  return aDtoDetalle(documento);
+}
+
+export async function listarHistorialDocumento(id, datos, usuario) {
+  const documento = await repositorio.obtenerDocumento(id);
+  if (!documento || (documento.anulado && !puedeVerAnulados(usuario))) {
+    throw errores.noEncontrado('Documento');
+  }
+
+  const pagina = datos.pagina ?? 1;
+  const porPagina = datos.porPagina ?? datos.por_pagina ?? 20;
+  const { total, filas } = await historial.listarHistorial({
+    idArchivo: id,
+    pagina,
+    porPagina,
+  });
+
+  return {
+    total,
+    pagina,
+    porPagina,
+    resultados: filas.map(aDtoHistorial),
+  };
+}
+
+export async function revertirCambioDocumento(id, idCambio, usuario, { forzar = false } = {}) {
+  const documento = await repositorio.obtenerDocumento(id);
+  if (!documento) {
+    throw errores.noEncontrado('Documento');
+  }
+
+  const resultado = await repositorio.revertirCambioDocumento(idCambio, usuario.id, { forzar });
+  if (resultado.noEncontrado) {
+    throw errores.noEncontrado('Cambio');
+  }
+  if (resultado.noReversible) {
+    throw errores.operacionNoPermitida('Este cambio no se puede revertir automáticamente.');
+  }
+  if (resultado.conflicto) {
+    throw errores.conflictoReversion();
+  }
+
+  const actualizado = await repositorio.obtenerDocumento(id);
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'REVERSION_DOCUMENTO',
+    descripcion: `Reversión del cambio #${idCambio} en el documento #${id} "${actualizado.titulo}".`,
+  });
+  return {
+    documento: aDtoDetalle(actualizado),
+    idCambio: resultado.idCambio,
+    idOperacion: resultado.idOperacion,
+  };
 }
 
 export function resolverRutaAbsoluta(rutaRelativa) {
@@ -243,7 +421,7 @@ export function nombreDescarga(titulo, extension) {
 
 async function prepararArchivo(id, usuario, tipo) {
   const registro = await repositorio.obtenerArchivo(id);
-  if (!registro) {
+  if (!registro || (registro.anulado && !puedeVerAnulados(usuario))) {
     throw errores.noEncontrado('Documento');
   }
 
@@ -292,3 +470,5 @@ export async function obtenerArchivo(id, usuario) {
 export async function obtenerMiniatura(id, usuario) {
   return prepararArchivo(id, usuario, 'miniatura');
 }
+
+export { aDtoResumen as aDtoResumenDocumento, aDtoDetalle as aDtoDetalleDocumento };

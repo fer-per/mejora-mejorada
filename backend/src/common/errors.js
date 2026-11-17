@@ -41,6 +41,26 @@ export const errores = {
     new AppError(mensaje, 400, 'OPERACION_NO_PERMITIDA'),
   archivoInvalido: (mensaje) =>
     new AppError(mensaje, 400, 'ARCHIVO_INVALIDO'),
+  conflictoConcurrencia: () =>
+    new AppError(
+      'El documento fue modificado por otro usuario. Recargue la ficha e intente nuevamente.',
+      409,
+      'CONFLICTO_CONCURRENCIA',
+    ),
+  conflictoVersion: () =>
+    new AppError(
+      'La entidad fue modificada por otro usuario. Recargue los datos e intente nuevamente.',
+      409,
+      'CONFLICTO_VERSION',
+    ),
+  conflictoReversion: () =>
+    new AppError(
+      'El documento tiene cambios posteriores. Confirme la reversión forzada o revise el historial.',
+      409,
+      'CONFLICTO_REVERSION',
+    ),
+  conflictoJerarquia: (mensaje) =>
+    new AppError(mensaje, 409, 'CONFLICTO_JERARQUIA'),
 };
 
 export default AppError;

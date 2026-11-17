@@ -169,7 +169,11 @@ CREATE TABLE archivo (
     nombre_original       VARCHAR(255),
     tamano_bytes          BIGINT,
     observaciones         TEXT,
-    ubicacion_fisica      VARCHAR(150)
+    ubicacion_fisica      VARCHAR(150),
+    anulado               BOOLEAN      NOT NULL DEFAULT false,
+    fecha_anulacion       TIMESTAMP,
+    id_usuario_anulacion  INTEGER      REFERENCES usuario (id),
+    motivo_anulacion      VARCHAR(500)
 );
 
 COMMENT ON TABLE archivo IS 'Clase Archivo: documentos digitales (TIFF/PDF-A) del repositorio, referenciados por ruta_archivo.';
@@ -191,3 +195,23 @@ CREATE INDEX idx_archivo_descriptores_trgm
     ON archivo USING GIN (f_unaccent(coalesce(descriptores, '')) gin_trgm_ops);
 CREATE INDEX idx_titulo_nombre_trgm
     ON titulo_escritura USING GIN (f_unaccent(nombre) gin_trgm_ops);
+CREATE INDEX idx_archivo_anulado ON archivo (anulado) WHERE anulado;
+
+-- Historial de cambios con valores antes/después para la gestión documental.
+CREATE TABLE historial_cambio (
+    id                SERIAL PRIMARY KEY,
+    id_operacion      UUID NOT NULL DEFAULT gen_random_uuid(),
+    id_usuario        INTEGER REFERENCES usuario (id) ON DELETE SET NULL,
+    id_archivo        INTEGER REFERENCES archivo (id) ON DELETE CASCADE,
+    entidad           VARCHAR(30) NOT NULL,
+    id_entidad        INTEGER,
+    tipo_operacion    VARCHAR(30) NOT NULL,
+    id_cambio_origen  INTEGER REFERENCES historial_cambio (id) ON DELETE SET NULL,
+    antes             JSONB,
+    despues           JSONB,
+    fecha_hora        TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_historial_archivo ON historial_cambio (id_archivo, fecha_hora DESC);
+CREATE INDEX idx_historial_entidad ON historial_cambio (entidad, id_entidad, fecha_hora DESC);
+CREATE INDEX idx_historial_operacion ON historial_cambio (id_operacion);

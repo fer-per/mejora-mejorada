@@ -101,9 +101,15 @@ export const esquemaActualizarDocumento = z
     observaciones: textoOpcional(2000),
     ubicacion_fisica: textoOpcional(150),
     interesados: z.array(esquemaInteresado).max(50, 'No se pueden registrar más de 50 interesados').optional(),
+    fecha_actualizacion: z.preprocess(
+      aNulo,
+      z.string().datetime({ offset: true, message: 'La versión del documento no es válida' }).nullable().optional(),
+    ),
   })
   .superRefine((datos, contexto) => {
-    const tieneCambios = Object.values(datos).some((valor) => valor !== undefined);
+    const tieneCambios = Object.entries(datos).some(
+      ([clave, valor]) => clave !== 'fecha_actualizacion' && valor !== undefined,
+    );
     if (!tieneCambios) {
       contexto.addIssue({
         code: z.ZodIssueCode.custom,
@@ -111,6 +117,26 @@ export const esquemaActualizarDocumento = z
       });
     }
   });
+
+export const esquemaAnularDocumento = z.object({
+  motivo: z
+    .string({ required_error: 'Indique el motivo de la anulación' })
+    .trim()
+    .min(1, 'Indique el motivo de la anulación')
+    .max(500, 'El motivo no puede exceder 500 caracteres'),
+});
+
+export const esquemaHistorial = z.object({
+  pagina: esquemaPagina,
+  por_pagina: esquemaPorPagina,
+});
+
+export const esquemaRevertir = z.object({
+  forzar: z.preprocess(
+    (valor) => valor === true || valor === 'true',
+    z.boolean().optional().default(false),
+  ),
+});
 
 const parsearJson = (valor) => {
   if (typeof valor !== 'string') return valor;

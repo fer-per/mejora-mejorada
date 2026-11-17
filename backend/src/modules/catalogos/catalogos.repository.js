@@ -14,7 +14,7 @@ export async function listarSeries() {
   const { rows } = await consultar(
     `SELECT DISTINCT serie
        FROM archivo
-      WHERE serie IS NOT NULL AND serie <> ''
+      WHERE anulado = false AND serie IS NOT NULL AND serie <> ''
       ORDER BY serie`,
   );
   return rows.map((fila) => fila.serie);
@@ -24,6 +24,7 @@ export async function listarTipologias() {
   const { rows } = await consultar(
     `SELECT DISTINCT tipologia_documental
        FROM archivo
+      WHERE anulado = false
       ORDER BY tipologia_documental`,
   );
   return rows.map((fila) => fila.tipologia_documental);
@@ -33,6 +34,7 @@ export async function listarConservaciones() {
   const { rows } = await consultar(
     `SELECT DISTINCT estado_conservacion
        FROM archivo
+      WHERE anulado = false
       ORDER BY estado_conservacion`,
   );
   return rows.map((fila) => fila.estado_conservacion);
@@ -44,7 +46,8 @@ export async function obtenerResumen() {
             COUNT(ruta_archivo)::int AS digitalizados,
             EXTRACT(YEAR FROM MIN(fecha_produccion))::int AS desde,
             EXTRACT(YEAR FROM MAX(fecha_produccion))::int AS hasta
-       FROM archivo`,
+       FROM archivo
+      WHERE anulado = false`,
   );
   const resumen = rows[0] ?? {};
   return {

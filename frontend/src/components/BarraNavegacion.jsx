@@ -13,6 +13,7 @@ export default function BarraNavegacion() {
 
   const enlaces = [{ to: '/busqueda', etiqueta: 'Consulta', icono: <IconoLibro size={15} /> }];
   if (usuario?.role === 'admin' || usuario?.role === 'archivero') {
+    enlaces.push({ to: '/gestion', etiqueta: 'Gestión', icono: <IconoDocumento size={15} /> });
     enlaces.push({ to: '/ingesta', etiqueta: 'Ingesta', icono: <IconoDocumento size={15} /> });
   }
   if (usuario?.role === 'admin') {

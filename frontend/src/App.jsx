@@ -5,6 +5,7 @@ import BusquedaPage from './pages/BusquedaPage.jsx';
 import IngestaPage from './pages/IngestaPage.jsx';
 import UsuariosPage from './pages/UsuariosPage.jsx';
 import AuditoriaPage from './pages/AuditoriaPage.jsx';
+import GestionPage from './pages/GestionPage.jsx';
 
 function RutaPrivada({ children }) {
   const { usuario } = useAuth();
@@ -34,6 +35,14 @@ export default function App() {
               <RutaPrivada>
                 <BusquedaPage />
               </RutaPrivada>
+            }
+          />
+          <Route
+            path="/gestion"
+            element={
+              <RutaPorPerfil perfiles={['admin', 'archivero']}>
+                <GestionPage />
+              </RutaPorPerfil>
             }
           />
           <Route
