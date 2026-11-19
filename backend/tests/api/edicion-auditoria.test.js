@@ -169,12 +169,15 @@ describe('AUD · Consulta de auditoría', () => {
     expect(respuesta.body.error.codigo).toBe('NO_ENCONTRADO');
   });
 
-  it('AUD-24 permite consultar al administrador y al archivista, y rechaza al usuario externo', async () => {
+  it('AUD-24 solo permite consultar al administrador y rechaza al archivista y al usuario externo', async () => {
+    const administrador = await listarAuditoria({}, tokenAdmin);
     const archivista = await listarAuditoria({}, tokenArchivista);
     const externo = await listarAuditoria({}, tokenExterno);
 
-    expect(archivista.status).toBe(200);
-    expect(archivista.body.total).toBeGreaterThan(0);
+    expect(administrador.status).toBe(200);
+    expect(administrador.body.total).toBeGreaterThan(0);
+    expect(archivista.status).toBe(403);
+    expect(archivista.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
     expect(externo.status).toBe(403);
     expect(externo.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
   });
@@ -185,17 +188,17 @@ describe('AUD · Consulta de auditoría', () => {
     expect(respuesta.body.error.codigo).toBe('VALIDACION_INVALIDA');
   });
 
-  it('AUD-26 permite al archivista consultar el detalle de una acción', async () => {
-    const listado = await listarAuditoria({ por_pagina: 1 }, tokenArchivista);
+  it('AUD-26 rechaza al archivista consultar el detalle de una acción', async () => {
+    const listado = await listarAuditoria({ por_pagina: 1 });
     const id = listado.body.resultados[0].id;
 
     const respuesta = await conToken(api().get(`/api/auditoria/${id}`), tokenArchivista);
-    expect(respuesta.status).toBe(200);
-    expect(respuesta.body.registro.id).toBe(id);
+    expect(respuesta.status).toBe(403);
+    expect(respuesta.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
   });
 
   it('AUD-27 lista los usuarios que aparecen en la auditoría', async () => {
-    const respuesta = await conToken(api().get('/api/auditoria/usuarios'), tokenArchivista);
+    const respuesta = await conToken(api().get('/api/auditoria/usuarios'), tokenAdmin);
 
     expect(respuesta.status).toBe(200);
     expect(respuesta.body.usuarios.length).toBeGreaterThan(0);
@@ -206,10 +209,13 @@ describe('AUD · Consulta de auditoría', () => {
     expect(respuesta.body.usuarios.map((usuario) => usuario.nombreUsuario)).toContain('anaquispe');
   });
 
-  it('AUD-28 rechaza el listado de usuarios auditados al usuario externo', async () => {
-    const respuesta = await conToken(api().get('/api/auditoria/usuarios'), tokenExterno);
+  it('AUD-28 rechaza el listado de usuarios auditados al archivista y al usuario externo', async () => {
+    const archivista = await conToken(api().get('/api/auditoria/usuarios'), tokenArchivista);
+    const externo = await conToken(api().get('/api/auditoria/usuarios'), tokenExterno);
 
-    expect(respuesta.status).toBe(403);
-    expect(respuesta.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
+    expect(archivista.status).toBe(403);
+    expect(archivista.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
+    expect(externo.status).toBe(403);
+    expect(externo.body.error.codigo).toBe('PERFIL_NO_AUTORIZADO');
   });
 });

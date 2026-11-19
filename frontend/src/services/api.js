@@ -43,7 +43,16 @@ function normalizarUsuario(usuario) {
 }
 
 function mensajeError(datos) {
-  return datos?.error?.mensaje ?? datos?.mensaje ?? 'No se pudo completar la operaciÃ³n.';
+  const mensaje = datos?.error?.mensaje ?? datos?.mensaje ?? 'No se pudo completar la operación.';
+  const detalles = datos?.error?.detalles;
+  if (Array.isArray(detalles) && detalles.length > 0) {
+    const campos = detalles
+      .map((detalle) => `${detalle.campo}: ${detalle.mensaje}`)
+      .filter(Boolean)
+      .join(' · ');
+    return campos ? `${mensaje} ${campos}` : mensaje;
+  }
+  return mensaje;
 }
 
 export async function peticion(ruta, opciones = {}) {

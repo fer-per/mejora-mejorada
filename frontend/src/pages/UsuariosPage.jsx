@@ -441,9 +441,10 @@ export default function UsuariosPage() {
                     className="form-control"
                     value={formulario.nombre_usuario}
                     onChange={(evento) => setFormulario({ ...formulario, nombre_usuario: evento.target.value })}
+                    minLength={3}
                     maxLength={50}
                     pattern="[a-zA-Z0-9._\-]+"
-                    title="Use solo letras, números, punto, guion o guion bajo"
+                    title="Use solo letras, números, punto, guion o guion bajo (mínimo 3 caracteres)"
                     required
                   />
                 </div>
@@ -472,8 +473,10 @@ export default function UsuariosPage() {
                     minLength={8}
                     maxLength={128}
                     autoComplete="new-password"
+                    placeholder="Mínimo 8 caracteres"
                     required={!formulario.id}
                   />
+                  <p className="seccion-formulario-ayuda mt-1">Use al menos 8 caracteres.</p>
                 </div>
                 <div className="col-12 col-md-3">
                   <label htmlFor="perfil" className="form-label filtro-label">Perfil</label>

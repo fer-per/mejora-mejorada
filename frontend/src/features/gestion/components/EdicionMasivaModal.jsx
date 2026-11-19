@@ -56,7 +56,7 @@ export default function EdicionMasivaModal({ ids, onClose, onSaved }) {
             </select>
           </div>
           <div className="col-12 col-md-6">
-            <label className="form-label filtro-label" htmlFor="masiva-tipologia">Tipología</label>
+            <label className="form-label filtro-label" htmlFor="masiva-tipologia">Título/Escritura</label>
             <input id="masiva-tipologia" className="form-control" value={formulario.tipologia} onChange={(evento) => actualizar('tipologia', evento.target.value)} maxLength={100} />
           </div>
           <div className="col-12 col-md-6">
@@ -68,7 +68,7 @@ export default function EdicionMasivaModal({ ids, onClose, onSaved }) {
             <input id="masiva-subserie" className="form-control" value={formulario.subserie} onChange={(evento) => actualizar('subserie', evento.target.value)} maxLength={150} />
           </div>
           <div className="col-12 col-md-6">
-            <label className="form-label filtro-label" htmlFor="masiva-ubicacion">Ubicación física</label>
+            <label className="form-label filtro-label" htmlFor="masiva-ubicacion">Data tópica</label>
             <input id="masiva-ubicacion" className="form-control" value={formulario.ubicacion_fisica} onChange={(evento) => actualizar('ubicacion_fisica', evento.target.value)} maxLength={150} />
           </div>
           <div className="col-12">

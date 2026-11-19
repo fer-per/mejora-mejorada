@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import BarraNavegacion from '../components/BarraNavegacion.jsx';
 import { IconoCerrar, IconoDocumento, IconoSubir } from '../components/Iconos.jsx';
+import IngestaMasiva from '../features/ingesta/IngestaMasiva.jsx';
 import { crearDocumento, obtenerCatalogos } from '../services/api.js';
 
 const FORMULARIO_VACIO = {
   id_fondo: '',
+  escribano: '',
   protocolo: '',
   anio: '',
   registro: '',
@@ -34,6 +36,8 @@ export default function IngestaPage() {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [vista, setVista] = useState('individual');
+  const [versionCatalogos, setVersionCatalogos] = useState(0);
   const archivoRef = useRef(null);
 
   useEffect(() => {
@@ -47,7 +51,7 @@ export default function IngestaPage() {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [versionCatalogos]);
 
   const actualizar = (campo) => (evento) => {
     setFormulario({ ...formulario, [campo]: evento.target.value });
@@ -180,18 +184,41 @@ export default function IngestaPage() {
           </div>
         </header>
 
-        {error && (
-          <div className="alert alert-danger py-2 px-3 small" role="alert">
-            {error}
-          </div>
-        )}
-        {exito && (
-          <div className="alert alert-success py-2 px-3 small" role="alert">
-            {exito}
-          </div>
-        )}
+        <div className="panel-busqueda-tabs" role="tablist" aria-label="Modalidad de ingesta">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === 'individual'}
+            className={`tab-busqueda ${vista === 'individual' ? 'activo' : ''}`}
+            onClick={() => setVista('individual')}
+          >
+            Ingesta individual
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === 'masiva'}
+            className={`tab-busqueda ${vista === 'masiva' ? 'activo' : ''}`}
+            onClick={() => setVista('masiva')}
+          >
+            Carga masiva desde Excel
+          </button>
+        </div>
 
-        <form className="panel-busqueda" onSubmit={enviar}>
+        {vista === 'individual' ? (
+          <>
+            {error && (
+              <div className="alert alert-danger py-2 px-3 small" role="alert">
+                {error}
+              </div>
+            )}
+            {exito && (
+              <div className="alert alert-success py-2 px-3 small" role="alert">
+                {exito}
+              </div>
+            )}
+
+            <form className="panel-busqueda" onSubmit={enviar}>
           <div className="seccion-formulario">
             <h2 className="seccion-formulario-titulo">Ubicación archivística</h2>
             <div className="row g-3">
@@ -203,6 +230,17 @@ export default function IngestaPage() {
                     <option key={fondo.id} value={fondo.id}>{fondo.denominacion}</option>
                   ))}
                 </select>
+              </div>
+              <div className="col-12 col-md-4">
+                <label htmlFor="escribano" className="form-label filtro-label">Escribano/Notario</label>
+                <input
+                  id="escribano"
+                  className="form-control"
+                  value={formulario.escribano}
+                  onChange={actualizar('escribano')}
+                  maxLength={200}
+                  placeholder="Nombre del escribano o notario"
+                />
               </div>
               <div className="col-12 col-md-4">
                 <label htmlFor="protocolo" className="form-label filtro-label">Protocolo *</label>
@@ -217,7 +255,7 @@ export default function IngestaPage() {
                 <input id="registro" className="form-control" value={formulario.registro} onChange={actualizar('registro')} maxLength={50} required />
               </div>
               <div className="col-12 col-md-8">
-                <label htmlFor="titulo" className="form-label filtro-label">Título</label>
+                <label htmlFor="titulo" className="form-label filtro-label">Título de la unidad</label>
                 <input
                   id="titulo"
                   className="form-control"
@@ -232,7 +270,7 @@ export default function IngestaPage() {
                 <input id="mes" type="number" className="form-control" value={formulario.mes} onChange={actualizar('mes')} min={1} max={12} />
               </div>
               <div className="col-6 col-md-2">
-                <label htmlFor="folios" className="form-label filtro-label">Folios</label>
+                <label htmlFor="folios" className="form-label filtro-label">Nro. de folios</label>
                 <input id="folios" type="number" className="form-control" value={formulario.folios} onChange={actualizar('folios')} min={1} />
               </div>
             </div>
@@ -242,7 +280,7 @@ export default function IngestaPage() {
             <h2 className="seccion-formulario-titulo">Descripción documental</h2>
             <div className="row g-3">
               <div className="col-12 col-md-4">
-                <label htmlFor="tipologia" className="form-label filtro-label">Tipología *</label>
+                <label htmlFor="tipologia" className="form-label filtro-label">Título/Escritura *</label>
                 <input
                   id="tipologia"
                   className="form-control"
@@ -291,7 +329,7 @@ export default function IngestaPage() {
                 </select>
               </div>
               <div className="col-12 col-md-6">
-                <label htmlFor="ubicacion_fisica" className="form-label filtro-label">Ubicación física</label>
+                <label htmlFor="ubicacion_fisica" className="form-label filtro-label">Data tópica</label>
                 <input id="ubicacion_fisica" className="form-control" value={formulario.ubicacion_fisica} onChange={actualizar('ubicacion_fisica')} maxLength={150} />
               </div>
               <div className="col-12">
@@ -382,7 +420,14 @@ export default function IngestaPage() {
               {enviando ? 'Cargando documento...' : 'Registrar documento'}
             </button>
           </div>
-        </form>
+            </form>
+          </>
+        ) : (
+          <IngestaMasiva
+            catalogos={catalogos}
+            onCargado={() => setVersionCatalogos((valor) => valor + 1)}
+          />
+        )}
 
         <footer className="pie-piloto">
           Piloto SIARC-ARA · La ingesta queda registrada en auditoría con usuario, fecha y archivo

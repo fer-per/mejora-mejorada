@@ -49,6 +49,8 @@ function aDtoResumen(fila) {
     fecha,
     fechaProduccion: fila.fecha_produccion ?? null,
     fondo: fila.fondo,
+    escribano: fila.escribano,
+    idEscribano: fila.id_escribano,
     protocolo: fila.protocolo,
     anio: fila.anio_protocolo,
     registro: fila.registro,
@@ -76,7 +78,7 @@ function aDtoDetalle(fila) {
     nombreOriginal: fila.nombre_original,
     tamanoBytes: fila.tamano_bytes == null ? null : Number(fila.tamano_bytes),
     interesados: fila.interesados ?? [],
-    archivoUrl: `/api/documentos/${fila.id}/archivo`,
+    archivoUrl: fila.ruta_archivo ? `/api/documentos/${fila.id}/archivo` : null,
     anulado: Boolean(fila.anulado),
     fechaAnulacion: aIso(fila.fecha_anulacion),
     motivoAnulacion: fila.motivo_anulacion,
@@ -169,6 +171,8 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
     creado = await repositorio.crearDocumento(
       {
         idFondo: datos.id_fondo,
+        idEscribano: datos.id_escribano,
+        escribano: datos.escribano,
         protocolo: datos.protocolo,
         anio: datos.anio,
         registro: datos.registro,
@@ -214,6 +218,52 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
   });
 
   return aDtoDetalle(documento);
+}
+
+export async function crearDocumentosMetadatos(datos, usuario) {
+  const filas = datos.filas.map((fila) => ({
+    fila: fila.fila,
+    idFondo: fila.id_fondo,
+    idEscribano: fila.id_escribano,
+    escribano: fila.escribano,
+    protocolo: fila.protocolo,
+    anio: fila.anio,
+    registro: fila.registro,
+    titulo: fila.titulo,
+    mes: fila.mes,
+    idResponsableDescripcion: fila.id_responsable_descripcion,
+    responsableDescripcion: fila.responsable_descripcion,
+    tipologia: fila.tipologia,
+    serie: fila.serie,
+    subserie: fila.subserie,
+    folios: fila.folios,
+    estadoConservacion: fila.estado_conservacion,
+    alcanceContenido: fila.alcance_contenido,
+    descriptores: fila.descriptores,
+    fechaProduccion: fila.fecha_produccion,
+    observaciones: fila.observaciones,
+    ubicacionFisica: fila.ubicacion_fisica,
+    interesados: fila.interesados,
+  }));
+
+  const resultados = await repositorio.crearDocumentosMetadatos(filas, usuario.id);
+  const creados = resultados.filter((resultado) => resultado.estado === 'creado').length;
+  const omitidos = resultados.filter((resultado) => resultado.estado === 'omitido').length;
+  const erroresFila = resultados.filter((resultado) => resultado.estado === 'error').length;
+
+  await registrarAccion({
+    idUsuario: usuario.id,
+    tipoAccion: 'CARGA_MASIVA_METADATOS',
+    descripcion: `Carga masiva de metadatos: ${creados} creado(s), ${omitidos} omitido(s) y ${erroresFila} error(es) de ${filas.length} fila(s).`,
+  });
+
+  return {
+    total: filas.length,
+    creados,
+    omitidos,
+    errores: erroresFila,
+    resultados,
+  };
 }
 
 export async function obtenerDetalle(id, usuario) {

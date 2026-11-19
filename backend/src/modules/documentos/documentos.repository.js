@@ -29,6 +29,8 @@ const COLUMNAS = `
     r.numero AS registro,
     ap.anio AS anio_protocolo,
     p.numero AS protocolo,
+    p.id_escribano,
+    e.nombre_completo AS escribano,
     f.id AS id_fondo,
     f.denominacion AS fondo,
     rep.numero AS repositorio,
@@ -43,6 +45,7 @@ const RELACIONES = `
     JOIN registro r          ON r.id = te.id_registro
     JOIN anio_protocolo ap   ON ap.id = r.id_anio_protocolo
     JOIN protocolo p         ON p.id = ap.id_protocolo
+    LEFT JOIN entidad_escribano e ON e.id = p.id_escribano
     JOIN fondo f             ON f.id = p.id_fondo
     JOIN repositorio rep     ON rep.id = f.id_repositorio
     LEFT JOIN responsable_descripcion rd ON rd.id = a.id_responsable_descripcion
@@ -360,94 +363,317 @@ function iguales(a, b) {
   return JSON.stringify(estable(a)) === JSON.stringify(estable(b));
 }
 
+async function resolverEscribano(cliente, idFondo, idEscribano, nombreEscribano) {
+  if (idEscribano) {
+    const { rows } = await cliente.query(
+      'SELECT id FROM entidad_escribano WHERE id = $1 AND id_fondo = $2',
+      [idEscribano, idFondo],
+    );
+    return rows[0]?.id ?? null;
+  }
+
+  const nombre = String(nombreEscribano ?? '').trim();
+  if (!nombre) return null;
+
+  let { rows } = await cliente.query(
+    `SELECT id
+       FROM entidad_escribano
+      WHERE id_fondo = $1
+        AND lower(f_unaccent(nombre_completo)) = lower(f_unaccent($2))
+      ORDER BY id
+      LIMIT 1`,
+    [idFondo, nombre],
+  );
+  if (rows[0]) return rows[0].id;
+
+  ({ rows } = await cliente.query(
+    'INSERT INTO entidad_escribano (id_fondo, nombre_completo) VALUES ($1, $2) RETURNING id',
+    [idFondo, nombre],
+  ));
+  return rows[0].id;
+}
+
+async function resolverResponsable(cliente, idResponsable, nombreResponsable) {
+  if (idResponsable) {
+    const { rows } = await cliente.query(
+      'SELECT id FROM responsable_descripcion WHERE id = $1',
+      [idResponsable],
+    );
+    return rows[0]?.id ?? null;
+  }
+
+  const nombre = String(nombreResponsable ?? '').trim();
+  if (!nombre) return null;
+
+  let { rows } = await cliente.query(
+    `SELECT id
+       FROM responsable_descripcion
+      WHERE lower(f_unaccent(nombre_completo)) = lower(f_unaccent($1))
+      ORDER BY id
+      LIMIT 1`,
+    [nombre],
+  );
+  if (rows[0]) return rows[0].id;
+
+  ({ rows } = await cliente.query(
+    'INSERT INTO responsable_descripcion (nombre_completo) VALUES ($1) RETURNING id',
+    [nombre],
+  ));
+  return rows[0].id;
+}
+
+async function buscarDuplicado(cliente, datos) {
+  const { rows } = await cliente.query(
+    `SELECT a.id
+       FROM archivo a
+       JOIN titulo_escritura te ON te.id = a.id_titulo_escritura
+       JOIN registro r          ON r.id = te.id_registro
+       JOIN anio_protocolo ap   ON ap.id = r.id_anio_protocolo
+       JOIN protocolo p         ON p.id = ap.id_protocolo
+      WHERE p.id_fondo = $1
+        AND p.numero = $2
+        AND ap.anio = $3
+        AND r.numero = $4
+        AND (
+          ($5::smallint IS NOT NULL AND a.folios = $5)
+          OR (
+            $5::smallint IS NULL
+            AND a.folios IS NULL
+            AND lower(f_unaccent(te.nombre)) = lower(f_unaccent($6))
+          )
+        )
+      ORDER BY a.id
+      LIMIT 1`,
+    [
+      datos.idFondo,
+      datos.protocolo,
+      datos.anio,
+      datos.registro,
+      datos.folios ?? null,
+      datos.titulo ?? '',
+    ],
+  );
+  return rows[0]?.id ?? null;
+}
+
+function claveCache(...partes) {
+  return partes
+    .map((parte) => String(parte ?? '').trim().toLowerCase())
+    .join('|');
+}
+
+async function insertarDocumento(cliente, datos, archivo, cache) {
+  const claveEscribano = claveCache(
+    datos.idFondo,
+    datos.idEscribano ? `id:${datos.idEscribano}` : `nombre:${datos.escribano}`,
+  );
+  let idEscribano = cache?.escribanos.get(claveEscribano);
+  if (idEscribano === undefined) {
+    idEscribano = await resolverEscribano(
+      cliente,
+      datos.idFondo,
+      datos.idEscribano,
+      datos.escribano,
+    );
+    cache?.escribanos.set(claveEscribano, idEscribano);
+  }
+
+  const claveProtocolo = claveCache(datos.idFondo, datos.protocolo);
+  let protocolo = cache?.protocolos.get(claveProtocolo);
+  if (!protocolo) {
+    const { rows } = await cliente.query(
+      'SELECT id, id_escribano FROM protocolo WHERE id_fondo = $1 AND numero = $2 ORDER BY id LIMIT 1',
+      [datos.idFondo, datos.protocolo],
+    );
+    protocolo = rows[0] ? { id: rows[0].id, idEscribano: rows[0].id_escribano } : null;
+    if (!protocolo) {
+      const { rows: creados } = await cliente.query(
+        'INSERT INTO protocolo (id_fondo, id_escribano, numero) VALUES ($1, $2, $3) RETURNING id',
+        [datos.idFondo, idEscribano, datos.protocolo],
+      );
+      protocolo = { id: creados[0].id, idEscribano };
+    }
+    if (idEscribano && !protocolo.idEscribano) {
+      await cliente.query('UPDATE protocolo SET id_escribano = $1 WHERE id = $2', [
+        idEscribano,
+        protocolo.id,
+      ]);
+      protocolo.idEscribano = idEscribano;
+    }
+    cache?.protocolos.set(claveProtocolo, protocolo);
+  }
+
+  const claveAnio = claveCache(protocolo.id, datos.anio);
+  let idAnio = cache?.anios.get(claveAnio);
+  if (!idAnio) {
+    const { rows } = await cliente.query(
+      'SELECT id FROM anio_protocolo WHERE id_protocolo = $1 AND anio = $2',
+      [protocolo.id, datos.anio],
+    );
+    idAnio = rows[0]?.id;
+    if (!idAnio) {
+      const { rows: creados } = await cliente.query(
+        'INSERT INTO anio_protocolo (id_protocolo, anio) VALUES ($1, $2) RETURNING id',
+        [protocolo.id, datos.anio],
+      );
+      idAnio = creados[0].id;
+    }
+    cache?.anios.set(claveAnio, idAnio);
+  }
+
+  const claveRegistro = claveCache(idAnio, datos.registro);
+  let idRegistro = cache?.registros.get(claveRegistro);
+  if (!idRegistro) {
+    const { rows } = await cliente.query(
+      'SELECT id FROM registro WHERE id_anio_protocolo = $1 AND numero = $2 ORDER BY id LIMIT 1',
+      [idAnio, datos.registro],
+    );
+    idRegistro = rows[0]?.id;
+    if (!idRegistro) {
+      const { rows: creados } = await cliente.query(
+        'INSERT INTO registro (id_anio_protocolo, numero) VALUES ($1, $2) RETURNING id',
+        [idAnio, datos.registro],
+      );
+      idRegistro = creados[0].id;
+    }
+    cache?.registros.set(claveRegistro, idRegistro);
+  }
+
+  const claveResponsable = claveCache(
+    datos.idResponsableDescripcion
+      ? `id:${datos.idResponsableDescripcion}`
+      : `nombre:${datos.responsableDescripcion}`,
+  );
+  let idResponsable = cache?.responsables.get(claveResponsable);
+  if (idResponsable === undefined) {
+    idResponsable = await resolverResponsable(
+      cliente,
+      datos.idResponsableDescripcion,
+      datos.responsableDescripcion,
+    );
+    cache?.responsables.set(claveResponsable, idResponsable);
+  }
+
+  const { rows: titulos } = await cliente.query(
+    `INSERT INTO titulo_escritura (id_registro, nombre, mes)
+     VALUES ($1, $2, $3) RETURNING id`,
+    [idRegistro, datos.titulo, datos.mes ?? null],
+  );
+  const idTituloEscritura = titulos[0].id;
+
+  const { rows: archivos } = await cliente.query(
+    `INSERT INTO archivo (
+       id_titulo_escritura, id_responsable_descripcion, id_usuario_carga,
+       tipologia_documental, serie, subserie, folios, formato, estado_conservacion,
+       alcance_contenido, descriptores, fecha_produccion, ruta_archivo,
+       nombre_original, tamano_bytes, observaciones, ubicacion_fisica
+     ) VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9,
+       $10, $11, $12, $13, $14, $15, $16, $17
+     ) RETURNING id`,
+    [
+      idTituloEscritura,
+      idResponsable,
+      datos.idUsuarioCarga,
+      datos.tipologia,
+      datos.serie ?? null,
+      datos.subserie ?? null,
+      datos.folios ?? null,
+      archivo?.formato ?? null,
+      datos.estadoConservacion,
+      datos.alcanceContenido ?? null,
+      datos.descriptores ?? null,
+      datos.fechaProduccion ?? null,
+      archivo?.ruta ?? null,
+      archivo?.nombreOriginal ?? null,
+      archivo?.tamanoBytes ?? null,
+      datos.observaciones ?? null,
+      datos.ubicacionFisica ?? null,
+    ],
+  );
+  const idArchivo = archivos[0].id;
+
+  if (datos.interesados?.length) {
+    await guardarInteresados(cliente, idTituloEscritura, datos.interesados);
+  }
+
+  return { id: idArchivo, idTituloEscritura };
+}
+
 export async function crearDocumento(datos, archivo) {
   return conTransaccion(async (cliente) => {
     const { rows: fondos } = await cliente.query('SELECT id FROM fondo WHERE id = $1', [datos.idFondo]);
     if (!fondos[0]) return null;
+    return insertarDocumento(cliente, datos, archivo);
+  });
+}
 
-    let { rows } = await cliente.query(
-      'SELECT id FROM protocolo WHERE id_fondo = $1 AND numero = $2 ORDER BY id LIMIT 1',
-      [datos.idFondo, datos.protocolo],
-    );
-    let idProtocolo = rows[0]?.id;
-    if (!idProtocolo) {
-      ({ rows } = await cliente.query(
-        'INSERT INTO protocolo (id_fondo, numero) VALUES ($1, $2) RETURNING id',
-        [datos.idFondo, datos.protocolo],
-      ));
-      idProtocolo = rows[0].id;
+export async function crearDocumentosMetadatos(documentos, idUsuario) {
+  return conTransaccion(async (cliente) => {
+    const { rows: fondos } = await cliente.query('SELECT id FROM fondo');
+    const fondosValidos = new Set(fondos.map((fondo) => Number(fondo.id)));
+    const cache = {
+      escribanos: new Map(),
+      protocolos: new Map(),
+      anios: new Map(),
+      registros: new Map(),
+      responsables: new Map(),
+    };
+    const vistos = new Set();
+    const resultados = [];
+
+    for (const datos of documentos) {
+      const fila = datos.fila;
+      if (!fondosValidos.has(Number(datos.idFondo))) {
+        resultados.push({ fila, estado: 'error', mensaje: 'Fondo no encontrado.' });
+        continue;
+      }
+
+      const clave = claveCache(
+        datos.idFondo,
+        datos.protocolo,
+        datos.anio,
+        datos.registro,
+        datos.folios ?? '',
+        datos.folios == null ? datos.titulo : '',
+      );
+      if (vistos.has(clave)) {
+        resultados.push({ fila, estado: 'omitido', motivo: 'Duplicado en el lote.' });
+        continue;
+      }
+      vistos.add(clave);
+
+      await cliente.query('SAVEPOINT lote_item');
+      try {
+        const duplicado = await buscarDuplicado(cliente, datos);
+        if (duplicado) {
+          await cliente.query('ROLLBACK TO SAVEPOINT lote_item');
+          await cliente.query('RELEASE SAVEPOINT lote_item');
+          resultados.push({
+            fila,
+            estado: 'omitido',
+            motivo: 'Ya existe un documento con el mismo protocolo, registro y folios.',
+            id: duplicado,
+          });
+          continue;
+        }
+
+        const creado = await insertarDocumento(
+          cliente,
+          { ...datos, idUsuarioCarga: idUsuario },
+          null,
+          cache,
+        );
+        await cliente.query('RELEASE SAVEPOINT lote_item');
+        resultados.push({ fila, estado: 'creado', id: creado.id });
+      } catch (error) {
+        await cliente.query('ROLLBACK TO SAVEPOINT lote_item');
+        await cliente.query('RELEASE SAVEPOINT lote_item');
+        resultados.push({ fila, estado: 'error', mensaje: error.message });
+      }
     }
 
-    ({ rows } = await cliente.query(
-      'SELECT id FROM anio_protocolo WHERE id_protocolo = $1 AND anio = $2',
-      [idProtocolo, datos.anio],
-    ));
-    let idAnio = rows[0]?.id;
-    if (!idAnio) {
-      ({ rows } = await cliente.query(
-        'INSERT INTO anio_protocolo (id_protocolo, anio) VALUES ($1, $2) RETURNING id',
-        [idProtocolo, datos.anio],
-      ));
-      idAnio = rows[0].id;
-    }
-
-    ({ rows } = await cliente.query(
-      'SELECT id FROM registro WHERE id_anio_protocolo = $1 AND numero = $2 ORDER BY id LIMIT 1',
-      [idAnio, datos.registro],
-    ));
-    let idRegistro = rows[0]?.id;
-    if (!idRegistro) {
-      ({ rows } = await cliente.query(
-        'INSERT INTO registro (id_anio_protocolo, numero) VALUES ($1, $2) RETURNING id',
-        [idAnio, datos.registro],
-      ));
-      idRegistro = rows[0].id;
-    }
-
-    ({ rows } = await cliente.query(
-      `INSERT INTO titulo_escritura (id_registro, nombre, mes)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [idRegistro, datos.titulo, datos.mes ?? null],
-    ));
-    const idTituloEscritura = rows[0].id;
-
-    ({ rows } = await cliente.query(
-      `INSERT INTO archivo (
-         id_titulo_escritura, id_responsable_descripcion, id_usuario_carga,
-         tipologia_documental, serie, subserie, folios, formato, estado_conservacion,
-         alcance_contenido, descriptores, fecha_produccion, ruta_archivo,
-         nombre_original, tamano_bytes, observaciones, ubicacion_fisica
-       ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9,
-         $10, $11, $12, $13, $14, $15, $16, $17
-       ) RETURNING id`,
-      [
-        idTituloEscritura,
-        datos.idResponsableDescripcion ?? null,
-        datos.idUsuarioCarga,
-        datos.tipologia,
-        datos.serie ?? null,
-        datos.subserie ?? null,
-        datos.folios ?? null,
-        archivo.formato,
-        datos.estadoConservacion,
-        datos.alcanceContenido ?? null,
-        datos.descriptores ?? null,
-        datos.fechaProduccion ?? null,
-        archivo.ruta,
-        archivo.nombreOriginal,
-        archivo.tamanoBytes,
-        datos.observaciones ?? null,
-        datos.ubicacionFisica ?? null,
-      ],
-    ));
-    const idArchivo = rows[0].id;
-
-    if (datos.interesados?.length) {
-      await guardarInteresados(cliente, idTituloEscritura, datos.interesados);
-    }
-
-    return { id: idArchivo, idTituloEscritura };
+    return resultados;
   });
 }
 

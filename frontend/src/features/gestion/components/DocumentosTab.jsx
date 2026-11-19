@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   IconoBuscar,
   IconoDocumento,
@@ -21,12 +21,17 @@ import ReemplazoModal from './ReemplazoModal.jsx';
 
 const POR_PAGINA = 15;
 
-export default function DocumentosTab({ esAdmin, onCambio }) {
+export default function DocumentosTab({
+  esAdmin,
+  onCambio,
+  documentoInicial = null,
+  onCerrarDocumento,
+}) {
   const [entrada, setEntrada] = useState('');
   const [filtros, setFiltros] = useState(FILTROS_DOCUMENTOS_INICIALES);
   const [pagina, setPagina] = useState(1);
   const [seleccion, setSeleccion] = useState([]);
-  const [documentoEditando, setDocumentoEditando] = useState(null);
+  const [documentoEditando, setDocumentoEditando] = useState(() => documentoInicial);
   const [historial, setHistorial] = useState(null);
   const [idsMasiva, setIdsMasiva] = useState(null);
   const [documentoReemplazo, setDocumentoReemplazo] = useState(null);
@@ -37,6 +42,14 @@ export default function DocumentosTab({ esAdmin, onCambio }) {
     pagina,
     porPagina: POR_PAGINA,
   });
+
+  useEffect(() => {
+    if (documentoInicial) setDocumentoEditando(documentoInicial);
+  }, [documentoInicial]);
+
+  useEffect(() => {
+    setSeleccion([]);
+  }, [pagina, filtros]);
 
   const totalPaginas = paginasTotales(datos, POR_PAGINA);
   const idsPagina = useMemo(() => datos.resultados.map((documento) => documento.id), [datos.resultados]);
@@ -51,6 +64,11 @@ export default function DocumentosTab({ esAdmin, onCambio }) {
     recargar();
     onCambio();
     if (mensaje) avisos.setExito(mensaje);
+  };
+
+  const cerrarEditor = () => {
+    setDocumentoEditando(null);
+    onCerrarDocumento?.();
   };
 
   const aplicarFiltros = (evento) => {
@@ -233,7 +251,7 @@ export default function DocumentosTab({ esAdmin, onCambio }) {
                   </th>
                   <th scope="col">Código</th>
                   <th scope="col">Título</th>
-                  <th scope="col">Tipología</th>
+                  <th scope="col">Título/Escritura</th>
                   <th scope="col">Fondo / año</th>
                   <th scope="col">Conservación</th>
                   <th scope="col">Estado</th>
@@ -319,7 +337,7 @@ export default function DocumentosTab({ esAdmin, onCambio }) {
       {documentoEditando && (
         <EditarDocumentoModal
           id={documentoEditando}
-          onClose={() => setDocumentoEditando(null)}
+          onClose={cerrarEditor}
           onSaved={refrescar}
         />
       )}

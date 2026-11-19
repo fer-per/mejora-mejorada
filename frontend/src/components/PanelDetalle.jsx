@@ -89,11 +89,12 @@ export default function PanelDetalle({ documento, cargando, onCerrar }) {
         <h4>Descripción archivística</h4>
         <div className="datos-grid">
           <Dato etiqueta="Fondo" valor={documento.fondo} />
+          <Dato etiqueta="Escribano/Notario" valor={documento.escribano} />
           <Dato etiqueta="Serie" valor={documento.serie} />
-          <Dato etiqueta="Tipología" valor={documento.tipo} />
+          <Dato etiqueta="Título/Escritura" valor={documento.tipo} />
           <Dato etiqueta="Fecha" valor={formatearFecha(documento.fecha)} />
-          <Dato etiqueta="Ubicación física" valor={documento.lugar} />
-          <Dato etiqueta="Folios" valor={documento.folios} />
+          <Dato etiqueta="Data tópica" valor={documento.lugar} />
+          <Dato etiqueta="Nro. de folios" valor={documento.folios} />
           <Dato etiqueta="Protocolo / registro" valor={documento.protocolo ? `${documento.protocolo} / ${documento.registro}` : documento.registro} />
           <Dato etiqueta="Conservación" valor={documento.conservacion} />
           <Dato etiqueta="Formato" valor={documento.formato} />

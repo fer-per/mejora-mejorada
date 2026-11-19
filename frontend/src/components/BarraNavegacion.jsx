@@ -19,7 +19,7 @@ export default function BarraNavegacion() {
   if (usuario?.role === 'admin') {
     enlaces.push({ to: '/usuarios', etiqueta: 'Usuarios', icono: <IconoUsuario size={15} /> });
   }
-  if (usuario?.role === 'admin' || usuario?.role === 'archivero') {
+  if (usuario?.role === 'admin') {
     enlaces.push({ to: '/auditoria', etiqueta: 'Auditoría', icono: <IconoHistorial size={15} /> });
   }
 

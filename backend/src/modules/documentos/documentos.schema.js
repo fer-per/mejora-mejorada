@@ -149,31 +149,58 @@ const parsearJson = (valor) => {
   }
 };
 
-export const esquemaIngestaDocumento = z
-  .object({
-    id_fondo: z.coerce.number().int().positive('Seleccione un fondo válido'),
-    protocolo: z.string({ required_error: 'El protocolo es obligatorio' }).trim().min(1, 'Ingrese el protocolo').max(50),
-    anio: z.coerce.number().int().min(1500, 'Año inválido').max(2100, 'Año inválido'),
-    registro: z.string({ required_error: 'El registro es obligatorio' }).trim().min(1, 'Ingrese el registro').max(50),
-    titulo: z.preprocess(
-      aIndefinido,
-      z.string().trim().min(1, 'Ingrese el título').max(300, 'El título no puede exceder 300 caracteres').optional(),
-    ),
-    mes: z.preprocess(aNulo, z.coerce.number().int().min(1).max(12).nullable().optional()),
-    id_responsable_descripcion: z.preprocess(
-      aNulo,
-      z.coerce.number().int().positive().nullable().optional(),
-    ),
-    tipologia: z.string({ required_error: 'La tipología es obligatoria' }).trim().min(1, 'Ingrese la tipología').max(100),
-    serie: textoOpcional(150),
-    subserie: textoOpcional(150),
-    folios: z.preprocess(aNulo, z.coerce.number().int().positive('Los folios deben ser mayores que cero').nullable().optional()),
-    estado_conservacion: z.preprocess(aIndefinido, z.enum(['Bueno', 'Regular', 'Malo']).optional()),
-    alcance_contenido: textoOpcional(5000),
-    descriptores: textoOpcional(2000),
-    fecha_produccion: z.preprocess(aNulo, esquemaFecha.nullable().optional()),
-    observaciones: textoOpcional(2000),
-    ubicacion_fisica: textoOpcional(150),
-    interesados: z.preprocess(parsearJson, z.array(esquemaInteresado).max(50, 'No se pueden registrar más de 50 interesados').optional()),
+const esquemaDocumentoIngesta = z.object({
+  id_fondo: z.coerce.number().int().positive('Seleccione un fondo válido'),
+  id_escribano: z.preprocess(
+    aNulo,
+    z.coerce.number().int().positive('Seleccione un escribano válido').nullable().optional(),
+  ),
+  escribano: textoOpcional(200),
+  protocolo: z.string({ required_error: 'El protocolo es obligatorio' }).trim().min(1, 'Ingrese el protocolo').max(50),
+  anio: z.coerce.number().int().min(1500, 'Año inválido').max(2100, 'Año inválido'),
+  registro: z.string({ required_error: 'El registro es obligatorio' }).trim().min(1, 'Ingrese el registro').max(50),
+  titulo: z.preprocess(
+    aIndefinido,
+    z.string().trim().min(1, 'Ingrese el título').max(300, 'El título no puede exceder 300 caracteres').optional(),
+  ),
+  mes: z.preprocess(aNulo, z.coerce.number().int().min(1).max(12).nullable().optional()),
+  id_responsable_descripcion: z.preprocess(
+    aNulo,
+    z.coerce.number().int().positive().nullable().optional(),
+  ),
+  responsable_descripcion: textoOpcional(200),
+  tipologia: z.string({ required_error: 'La tipología es obligatoria' }).trim().min(1, 'Ingrese la tipología').max(100),
+  serie: textoOpcional(150),
+  subserie: textoOpcional(150),
+  folios: z.preprocess(aNulo, z.coerce.number().int().positive('Los folios deben ser mayores que cero').nullable().optional()),
+  estado_conservacion: z.preprocess(aIndefinido, z.enum(['Bueno', 'Regular', 'Malo']).optional()),
+  alcance_contenido: textoOpcional(5000),
+  descriptores: textoOpcional(2000),
+  fecha_produccion: z.preprocess(aNulo, esquemaFecha.nullable().optional()),
+  observaciones: textoOpcional(2000),
+  ubicacion_fisica: textoOpcional(150),
+  interesados: z.preprocess(parsearJson, z.array(esquemaInteresado).max(50, 'No se pueden registrar más de 50 interesados').optional()),
+});
+
+export const esquemaIngestaDocumento = esquemaDocumentoIngesta.transform((datos) => ({
+  ...datos,
+  estado_conservacion: datos.estado_conservacion ?? 'Bueno',
+}));
+
+const esquemaFilaMasiva = esquemaDocumentoIngesta
+  .extend({
+    fila: z.coerce.number().int().positive('Fila inválida'),
+    titulo: z
+      .string({ required_error: 'El título/escritura es obligatorio' })
+      .trim()
+      .min(1, 'Ingrese el título/escritura')
+      .max(300, 'El título no puede exceder 300 caracteres'),
   })
   .transform((datos) => ({ ...datos, estado_conservacion: datos.estado_conservacion ?? 'Bueno' }));
+
+export const esquemaIngestaMasiva = z.object({
+  filas: z
+    .array(esquemaFilaMasiva)
+    .min(1, 'Envíe al menos una fila')
+    .max(200, 'No se pueden importar más de 200 filas por lote'),
+});

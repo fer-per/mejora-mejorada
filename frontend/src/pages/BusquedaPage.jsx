@@ -277,14 +277,14 @@ export default function BusquedaPage() {
                   </select>
                 </div>
                 <div className="col-12 col-md-6">
-                  <label htmlFor="tipologia" className="form-label filtro-label">Tipología documental</label>
+                  <label htmlFor="tipologia" className="form-label filtro-label">Título/Escritura</label>
                   <select
                     id="tipologia"
                     className="form-select"
                     value={filtros.tipologia}
                     onChange={(evento) => setFiltros({ ...filtros, tipologia: evento.target.value })}
                   >
-                    <option value="">Todas las tipologías</option>
+                    <option value="">Todos</option>
                     {catalogos.tipologias.map((tipologia) => (
                       <option key={tipologia} value={tipologia}>{tipologia}</option>
                     ))}

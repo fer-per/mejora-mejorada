@@ -23,7 +23,13 @@ export function manejarErrores(error, req, res, next) {
   } else if (error.code === '23505') {
     estado = 409;
     codigo = 'REGISTRO_DUPLICADO';
-    mensaje = 'Ya existe un registro con esos datos.';
+    if (String(error.constraint ?? '').includes('correo')) {
+      mensaje = 'Ya existe un usuario con ese correo electrónico.';
+    } else if (String(error.constraint ?? '').includes('nombre_usuario')) {
+      mensaje = 'Ya existe un usuario con ese nombre de usuario.';
+    } else {
+      mensaje = 'Ya existe un registro con esos datos.';
+    }
   } else if (error.code === '23503') {
     estado = 400;
     codigo = 'REFERENCIA_INVALIDA';

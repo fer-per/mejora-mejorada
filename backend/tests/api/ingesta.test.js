@@ -142,6 +142,28 @@ describe('ING · Ingesta documental', () => {
     expect(respuesta.body.error.codigo).toBe('VALIDACION_INVALIDA');
   });
 
+  it('ING-13 asocia el escribano/notario indicado al protocolo', async () => {
+    const respuesta = await ingesta(pdf('escritura-escribano.pdf'), {
+      ...METADATOS,
+      protocolo: 'P-ESCRIBANO',
+      registro: 'R-ESCRIBANO',
+      titulo: 'Escritura con escribano',
+      escribano: 'Escribano de Prueba',
+    });
+
+    expect(respuesta.status).toBe(201);
+    expect(respuesta.body.documento.escribano).toBe('Escribano de Prueba');
+
+    const { rows } = await consultar(
+      `SELECT e.nombre_completo
+         FROM protocolo p
+         JOIN entidad_escribano e ON e.id = p.id_escribano
+        WHERE p.numero = 'P-ESCRIBANO'
+        LIMIT 1`,
+    );
+    expect(rows[0]?.nombre_completo).toBe('Escribano de Prueba');
+  });
+
   it('ING-09 rechaza el acceso directo al archivo sin autenticación', async () => {
     const respuesta = await api().get('/api/documentos/1/archivo');
     expect(respuesta.status).toBe(401);

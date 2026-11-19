@@ -160,11 +160,31 @@ export default function EstructuraTab({ esAdmin, onCambio, fusionInicial }) {
           <div className="row g-3 align-items-end">
             <div className="col-6 col-md-2">
               <label htmlFor="fusion-origen" className="form-label filtro-label">Origen</label>
-              <input id="fusion-origen" type="number" className="form-control" value={fusionOrigen} onChange={(evento) => setFusionOrigen(evento.target.value)} min={1} />
+              <input
+                id="fusion-origen"
+                type="number"
+                className="form-control"
+                value={fusionOrigen}
+                onChange={(evento) => {
+                  setFusionOrigen(evento.target.value);
+                  setFusionPreview(null);
+                }}
+                min={1}
+              />
             </div>
             <div className="col-6 col-md-2">
               <label htmlFor="fusion-destino" className="form-label filtro-label">Destino</label>
-              <input id="fusion-destino" type="number" className="form-control" value={fusionDestino} onChange={(evento) => setFusionDestino(evento.target.value)} min={1} />
+              <input
+                id="fusion-destino"
+                type="number"
+                className="form-control"
+                value={fusionDestino}
+                onChange={(evento) => {
+                  setFusionDestino(evento.target.value);
+                  setFusionPreview(null);
+                }}
+                min={1}
+              />
             </div>
             <div className="col-12 col-md-4">
               <label htmlFor="fusion-tipo" className="form-label filtro-label">Tipo</label>

@@ -48,6 +48,11 @@ export const crear = manejar(async (req, res) => {
   res.status(201).json({ documento });
 });
 
+export const crearMasivo = manejar(async (req, res) => {
+  const resultado = await servicio.crearDocumentosMetadatos(req.datos, req.usuario);
+  res.status(201).json(resultado);
+});
+
 export const actualizar = manejar(async (req, res) => {
   const documento = await servicio.actualizarDocumento(Number(req.params.id), req.datos, req.usuario);
   res.json({ documento });

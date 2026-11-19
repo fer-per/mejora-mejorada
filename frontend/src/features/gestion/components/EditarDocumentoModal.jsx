@@ -132,7 +132,7 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
     if (!documento) return;
     setError('');
     if (!formulario.titulo.trim() || !formulario.tipologia.trim()) {
-      setError('El título y la tipología son obligatorios.');
+      setError('El título de la unidad y el título/escritura son obligatorios.');
       return;
     }
 
@@ -159,7 +159,13 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
 
   return (
     <ModalBase
-      titulo={documento ? `Editar documento #${documento.id}` : 'Cargando documento'}
+      titulo={
+        documento
+          ? `Editar documento #${documento.id}`
+          : cargando
+            ? 'Cargando documento'
+            : 'No se pudo cargar el documento'
+      }
       etiqueta="Edición de metadatos"
       onCerrar={onClose}
       ancho="960px"
@@ -169,6 +175,13 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
           <div className="spinner-border text-secondary" role="status" />
           <p>Cargando ficha...</p>
         </div>
+      ) : !documento ? (
+        <>
+          {error && <div className="alert alert-danger py-2 px-3 small">{error}</div>}
+          <div className="modal-acciones">
+            <button type="button" className="btn boton-secundario" onClick={onClose}>Cerrar</button>
+          </div>
+        </>
       ) : (
         <form onSubmit={guardar}>
           {error && <div className="alert alert-danger py-2 px-3 small">{error}</div>}
@@ -179,11 +192,11 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
           )}
           <div className="row g-3">
             <div className="col-12 col-md-8">
-              <label className="form-label filtro-label" htmlFor="edit-titulo">Título *</label>
+              <label className="form-label filtro-label" htmlFor="edit-titulo">Título de la unidad *</label>
               <input id="edit-titulo" className="form-control" value={formulario.titulo} onChange={(evento) => actualizarCampo('titulo', evento.target.value)} maxLength={300} required />
             </div>
             <div className="col-12 col-md-4">
-              <label className="form-label filtro-label" htmlFor="edit-tipologia">Tipología *</label>
+              <label className="form-label filtro-label" htmlFor="edit-tipologia">Título/Escritura *</label>
               <input id="edit-tipologia" className="form-control" value={formulario.tipologia} onChange={(evento) => actualizarCampo('tipologia', evento.target.value)} maxLength={100} required />
             </div>
             <div className="col-12 col-md-6">
@@ -195,7 +208,7 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
               <input id="edit-subserie" className="form-control" value={formulario.subserie} onChange={(evento) => actualizarCampo('subserie', evento.target.value)} maxLength={150} />
             </div>
             <div className="col-6 col-md-3">
-              <label className="form-label filtro-label" htmlFor="edit-folios">Folios</label>
+              <label className="form-label filtro-label" htmlFor="edit-folios">Nro. de folios</label>
               <input id="edit-folios" type="number" className="form-control" value={formulario.folios} onChange={(evento) => actualizarCampo('folios', evento.target.value)} min={1} />
             </div>
             <div className="col-6 col-md-3">
@@ -211,7 +224,7 @@ export default function EditarDocumentoModal({ id, onClose, onSaved }) {
               <input id="edit-fecha" type="date" className="form-control" value={formulario.fecha_produccion} onChange={(evento) => actualizarCampo('fecha_produccion', evento.target.value)} />
             </div>
             <div className="col-6 col-md-3">
-              <label className="form-label filtro-label" htmlFor="edit-ubicacion">Ubicación física</label>
+              <label className="form-label filtro-label" htmlFor="edit-ubicacion">Data tópica</label>
               <input id="edit-ubicacion" className="form-control" value={formulario.ubicacion_fisica} onChange={(evento) => actualizarCampo('ubicacion_fisica', evento.target.value)} maxLength={150} />
             </div>
             <div className="col-12">

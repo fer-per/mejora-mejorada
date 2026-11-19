@@ -64,7 +64,7 @@ export default function App() {
           <Route
             path="/auditoria"
             element={
-              <RutaPorPerfil perfiles={['admin', 'archivero']}>
+              <RutaPorPerfil perfiles={['admin']}>
                 <AuditoriaPage />
               </RutaPorPerfil>
             }
