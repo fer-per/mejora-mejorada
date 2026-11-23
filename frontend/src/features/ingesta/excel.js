@@ -83,6 +83,18 @@ function textoPlano(valor) {
   return '';
 }
 
+function fechaCalendarioValida(fecha) {
+  const coincidencia = String(fecha ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!coincidencia) return false;
+  const [, anio, mes, dia] = coincidencia.map(Number);
+  const comprobacion = new Date(Date.UTC(anio, mes - 1, dia));
+  return (
+    comprobacion.getUTCFullYear() === anio &&
+    comprobacion.getUTCMonth() === mes - 1 &&
+    comprobacion.getUTCDate() === dia
+  );
+}
+
 function fechaAiso(valor) {
   if (valor instanceof Date) {
     const anio = valor.getUTCFullYear();
@@ -431,6 +443,10 @@ export async function leerExcel(archivo) {
   };
 }
 
+export function claveArchivo(archivo) {
+  return archivo?.webkitRelativePath || archivo?.name || '';
+}
+
 function nombreSinExtension(nombre) {
   return String(nombre ?? '').replace(/\.[^.]+$/, '');
 }
@@ -445,14 +461,14 @@ export function archivoCoincidente(datos, archivos, numeroFila) {
       const nombre = normalizarTexto(archivo.name);
       return nombre === candidato || normalizarTexto(nombreSinExtension(archivo.name)) === candidato;
     });
-    if (exacto) return exacto.name;
+    if (exacto) return claveArchivo(exacto);
   }
 
   for (const candidato of candidatos) {
     const parciales = archivos.filter((archivo) =>
       normalizarTexto(archivo.name).includes(candidato),
     );
-    if (parciales.length === 1) return parciales[0].name;
+    if (parciales.length === 1) return claveArchivo(parciales[0]);
   }
 
   return '';
@@ -520,7 +536,7 @@ export function validarFila(fila, catalogos, archivos, { exigirArchivo = false }
     errores.push(`Nro. de folios inválido: "${datos.folios}".`);
   }
 
-  if (datos.fecha_produccion && !/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_produccion)) {
+  if (datos.fecha_produccion && !fechaCalendarioValida(datos.fecha_produccion)) {
     errores.push(`Fecha inválida: "${datos.fecha_produccion}".`);
   }
 
@@ -529,8 +545,11 @@ export function validarFila(fila, catalogos, archivos, { exigirArchivo = false }
     errores.push(`Conservación inválida: "${datos.estado_conservacion}".`);
   }
 
-  const archivo = archivos.find((item) => item.name === fila.archivoAsignado) ?? null;
+  const archivo = archivos.find((item) => claveArchivo(item) === fila.archivoAsignado) ?? null;
   if (exigirArchivo && !archivo) errores.push('Seleccione el archivo digital de esta fila.');
+  if (!exigirArchivo && fila.archivoAsignado && !archivo) {
+    errores.push('El archivo asignado no est? disponible en la carpeta seleccionada.');
+  }
 
   return {
     ...fila,

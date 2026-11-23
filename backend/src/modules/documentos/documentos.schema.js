@@ -179,6 +179,10 @@ const esquemaDocumentoIngesta = z.object({
   fecha_produccion: z.preprocess(aNulo, esquemaFecha.nullable().optional()),
   observaciones: textoOpcional(2000),
   ubicacion_fisica: textoOpcional(150),
+  ruta_relativa: z.preprocess(
+    aNulo,
+    z.string().trim().min(1).max(500, 'La ruta no puede exceder 500 caracteres').nullable().optional(),
+  ),
   interesados: z.preprocess(parsearJson, z.array(esquemaInteresado).max(50, 'No se pueden registrar más de 50 interesados').optional()),
 });
 
@@ -187,7 +191,7 @@ export const esquemaIngestaDocumento = esquemaDocumentoIngesta.transform((datos)
   estado_conservacion: datos.estado_conservacion ?? 'Bueno',
 }));
 
-const esquemaFilaMasiva = esquemaDocumentoIngesta
+export const esquemaFilaMasiva = esquemaDocumentoIngesta
   .extend({
     fila: z.coerce.number().int().positive('Fila inválida'),
     titulo: z
@@ -200,7 +204,48 @@ const esquemaFilaMasiva = esquemaDocumentoIngesta
 
 export const esquemaIngestaMasiva = z.object({
   filas: z
-    .array(esquemaFilaMasiva)
+    .array(z.unknown())
     .min(1, 'Envíe al menos una fila')
     .max(200, 'No se pueden importar más de 200 filas por lote'),
+});
+
+const esquemaRutaAcervo = z
+  .string({ required_error: 'La ruta del archivo es obligatoria' })
+  .trim()
+  .min(1, 'La ruta del archivo es obligatoria')
+  .max(500, 'La ruta no puede exceder 500 caracteres');
+
+export const esquemaValidarAcervo = z.object({
+  archivos: z
+    .array(
+      z.object({
+        ruta: esquemaRutaAcervo,
+        tamanoBytes: z.preprocess(
+          aNulo,
+          z.coerce.number().int().nonnegative().nullable().optional(),
+        ),
+      }),
+    )
+    .min(1, 'Envíe al menos un archivo')
+    .max(500, 'No se pueden validar más de 500 archivos por lote'),
+});
+
+export const esquemaVincularAcervo = z.object({
+  asignaciones: z
+    .array(
+      z.object({
+        ruta: esquemaRutaAcervo,
+        id_documento: z.coerce
+          .number()
+          .int()
+          .positive('Seleccione un documento válido'),
+      }),
+    )
+    .min(1, 'Envíe al menos una asignación')
+    .max(200, 'No se pueden vincular más de 200 archivos por lote'),
+});
+
+export const esquemaSubirAcervo = z.object({
+  ruta: esquemaRutaAcervo,
+  id_documento: z.coerce.number().int().positive('Seleccione un documento válido'),
 });

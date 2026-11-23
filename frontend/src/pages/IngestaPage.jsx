@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import BarraNavegacion from '../components/BarraNavegacion.jsx';
 import { IconoCerrar, IconoDocumento, IconoSubir } from '../components/Iconos.jsx';
 import IngestaMasiva from '../features/ingesta/IngestaMasiva.jsx';
+import ArchivosAcervo from '../features/ingesta/ArchivosAcervo.jsx';
 import { crearDocumento, obtenerCatalogos } from '../services/api.js';
 
 const FORMULARIO_VACIO = {
@@ -158,7 +159,7 @@ export default function IngestaPage() {
     <div className="app-fondo">
       <BarraNavegacion />
 
-      <main className="contenedor-busqueda">
+      <main className="contenedor-busqueda contenedor-ancho">
         <header className="encabezado-busqueda">
           <div>
             <p className="encabezado-etiqueta">Procesos técnicos archivísticos</p>
@@ -201,7 +202,16 @@ export default function IngestaPage() {
             className={`tab-busqueda ${vista === 'masiva' ? 'activo' : ''}`}
             onClick={() => setVista('masiva')}
           >
-            Carga masiva desde Excel
+            Carga masiva (Excel + carpeta)
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === 'archivos'}
+            className={`tab-busqueda ${vista === 'archivos' ? 'activo' : ''}`}
+            onClick={() => setVista('archivos')}
+          >
+            Archivos del acervo
           </button>
         </div>
 
@@ -422,11 +432,13 @@ export default function IngestaPage() {
           </div>
             </form>
           </>
-        ) : (
+        ) : vista === 'masiva' ? (
           <IngestaMasiva
             catalogos={catalogos}
             onCargado={() => setVersionCatalogos((valor) => valor + 1)}
           />
+        ) : (
+          <ArchivosAcervo onCargado={() => setVersionCatalogos((valor) => valor + 1)} />
         )}
 
         <footer className="pie-piloto">

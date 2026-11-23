@@ -1,4 +1,4 @@
-﻿import { normalizarFicha, normalizarResultado } from './normalizadores.js';
+import { normalizarFicha, normalizarResultado } from './normalizadores.js';
 
 const CLAVE_TOKEN = 'siarc_ara_piloto_token';
 const CLAVE_USUARIO = 'siarc_ara_piloto_usuario';
@@ -102,7 +102,7 @@ export async function apiArchivo(ruta) {
   if (respuesta.status === 401) {
     limpiarSesion();
     window.dispatchEvent(new Event(EVENTO_SESION));
-    throw new Error('SesiÃ³n no vÃ¡lida o expirada. Inicie sesiÃ³n nuevamente.');
+    throw new Error('Sesión no válida o expirada. Inicie sesión nuevamente.');
   }
 
   if (!respuesta.ok) {
@@ -204,6 +204,41 @@ export function desactivarUsuario(id) {
 export async function crearDocumento(formulario) {
   const datos = await peticion('/api/documentos', { metodo: 'POST', formulario });
   return normalizarFicha(datos.documento);
+}
+
+export function crearDocumentosMasivo(filas) {
+  return peticion('/api/documentos/ingesta-masiva', {
+    metodo: 'POST',
+    cuerpo: { filas },
+  });
+}
+
+export function validarArchivosAcervo(archivos) {
+  return peticion('/api/documentos/acervo/validar', {
+    metodo: 'POST',
+    cuerpo: { archivos },
+  });
+}
+
+export function escanearAcervo() {
+  return peticion('/api/documentos/acervo/escanear', {
+    metodo: 'POST',
+    cuerpo: {},
+  });
+}
+
+export function vincularArchivosAcervo(asignaciones) {
+  return peticion('/api/documentos/acervo/vincular', {
+    metodo: 'POST',
+    cuerpo: { asignaciones },
+  });
+}
+
+export function subirArchivoAcervo(formulario) {
+  return peticion('/api/documentos/acervo/subir', {
+    metodo: 'POST',
+    formulario,
+  });
 }
 
 export function listarAuditoria({ tipoAccion = '', idUsuario = '', desde = '', hasta = '', pagina = 1, porPagina = 20 } = {}) {

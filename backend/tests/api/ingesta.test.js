@@ -169,6 +169,178 @@ describe('ING · Ingesta documental', () => {
     expect(respuesta.status).toBe(401);
   });
 
+  it('ING-14 importa metadatos sin archivo y resuelve responsable, escribano y jerarquía', async () => {
+    const respuesta = await conToken(api().post('/api/documentos/ingesta-masiva'), tokenArchivista).send({
+      filas: [
+        {
+          fila: 20,
+          id_fondo: 1,
+          protocolo: 'P-META',
+          anio: ANIO_PRUEBA,
+          registro: 'R-META-1',
+          titulo: 'Carta de venta de tierras',
+          tipologia: 'Carta de venta',
+          folios: 3,
+          escribano: 'Escribano de Metadatos',
+          responsable_descripcion: 'MELTHA LLANQUI',
+          interesados: [{ nombre: 'LUIS LOPEZ', rol: 'Interesado 1' }],
+        },
+        {
+          fila: 21,
+          id_fondo: '1',
+          protocolo: 'P-META',
+          anio: String(ANIO_PRUEBA),
+          registro: 'R-META-2',
+          titulo: 'Poder para pleitos',
+          tipologia: 'Poder',
+          folios: 1,
+          escribano: 'Escribano de Metadatos',
+          responsable_descripcion: 'MELTHA LLANQUI',
+        },
+      ],
+    });
+
+    expect(respuesta.status).toBe(201);
+    expect(respuesta.body).toMatchObject({ total: 2, creados: 2, omitidos: 0, errores: 0 });
+    const ids = respuesta.body.resultados.map((resultado) => resultado.id);
+
+    const { rows } = await consultar(
+      `SELECT a.id, a.ruta_archivo, a.formato, a.folios,
+              rd.nombre_completo AS responsable,
+              e.nombre_completo AS escribano
+         FROM archivo a
+         JOIN titulo_escritura te ON te.id = a.id_titulo_escritura
+         JOIN registro r          ON r.id = te.id_registro
+         JOIN anio_protocolo ap   ON ap.id = r.id_anio_protocolo
+         JOIN protocolo p         ON p.id = ap.id_protocolo
+         LEFT JOIN entidad_escribano e ON e.id = p.id_escribano
+         LEFT JOIN responsable_descripcion rd ON rd.id = a.id_responsable_descripcion
+        WHERE p.numero = 'P-META'
+        ORDER BY a.id`,
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.every((fila) => fila.ruta_archivo === null)).toBe(true);
+    expect(rows.every((fila) => fila.formato === null)).toBe(true);
+    expect(rows.map((fila) => Number(fila.folios))).toEqual([3, 1]);
+    expect(rows.every((fila) => fila.responsable === 'MELTHA LLANQUI')).toBe(true);
+    expect(rows.every((fila) => fila.escribano === 'Escribano de Metadatos')).toBe(true);
+
+    const detalle = await conToken(api().get(`/api/documentos/${ids[0]}`), tokenArchivista);
+    expect(detalle.status).toBe(200);
+    expect(detalle.body.documento.archivoUrl).toBeNull();
+    expect(detalle.body.documento.digitalizado).toBe(false);
+    expect(detalle.body.documento.formato).toBeNull();
+    expect(detalle.body.documento.responsableDescripcion).toBe('MELTHA LLANQUI');
+
+    const auditoria = await consultar(
+      "SELECT descripcion FROM registro_auditoria WHERE tipo_accion = 'CARGA_MASIVA_METADATOS' ORDER BY id DESC LIMIT 1",
+    );
+    expect(auditoria.rows[0]?.descripcion).toMatch(/2 creado/);
+  });
+
+  it('ING-15 omite los documentos que ya existen al repetir el lote', async () => {
+    const respuesta = await conToken(api().post('/api/documentos/ingesta-masiva'), tokenArchivista).send({
+      filas: [
+        {
+          fila: 20,
+          id_fondo: 1,
+          protocolo: 'P-META',
+          anio: ANIO_PRUEBA,
+          registro: 'R-META-1',
+          titulo: 'Carta de venta de tierras',
+          tipologia: 'Carta de venta',
+          folios: 3,
+        },
+        {
+          fila: 21,
+          id_fondo: 1,
+          protocolo: 'P-META',
+          anio: ANIO_PRUEBA,
+          registro: 'R-META-2',
+          titulo: 'Poder para pleitos',
+          tipologia: 'Poder',
+          folios: 1,
+        },
+      ],
+    });
+
+    expect(respuesta.status).toBe(201);
+    expect(respuesta.body).toMatchObject({ total: 2, creados: 0, omitidos: 2, errores: 0 });
+    expect(respuesta.body.resultados.every((resultado) => resultado.estado === 'omitido')).toBe(true);
+  });
+
+  it('ING-16 omite duplicados dentro del mismo lote', async () => {
+    const fila = {
+      id_fondo: 1,
+      protocolo: 'P-META-DUPLICADO',
+      anio: ANIO_PRUEBA,
+      registro: 'R-META-DUP',
+      titulo: 'Escritura repetida',
+      tipologia: 'Escritura',
+      folios: 2,
+    };
+    const respuesta = await conToken(api().post('/api/documentos/ingesta-masiva'), tokenArchivista).send({
+      filas: [
+        { ...fila, fila: 30 },
+        { ...fila, fila: 31 },
+      ],
+    });
+
+    expect(respuesta.status).toBe(201);
+    expect(respuesta.body).toMatchObject({ total: 2, creados: 1, omitidos: 1, errores: 0 });
+    expect(respuesta.body.resultados[1].estado).toBe('omitido');
+  });
+
+  it('ING-17 reporta filas inválidas sin bloquear las filas válidas del lote', async () => {
+    const respuesta = await conToken(api().post('/api/documentos/ingesta-masiva'), tokenArchivista).send({
+      filas: [
+        {
+          fila: 40,
+          id_fondo: 1,
+          protocolo: 'P-META-INVALIDO',
+          anio: 1800,
+          registro: 'R-META-INVALIDO',
+          titulo: '',
+          tipologia: 'Poder',
+        },
+        {
+          fila: 41,
+          id_fondo: 1,
+          protocolo: 'P-META-INVALIDO',
+          anio: ANIO_PRUEBA,
+          registro: 'R-META-VALIDO',
+          titulo: 'Fila válida junto a una inválida',
+          tipologia: 'Poder',
+        },
+      ],
+    });
+
+    expect(respuesta.status).toBe(201);
+    expect(respuesta.body).toMatchObject({ total: 2, creados: 1, omitidos: 0, errores: 1 });
+    expect(respuesta.body.resultados[0]).toMatchObject({ fila: 40, estado: 'error' });
+    expect(respuesta.body.resultados[0].mensaje).toBeTruthy();
+    expect(respuesta.body.resultados[1]).toMatchObject({ fila: 41, estado: 'creado' });
+  });
+
+  it('ING-18 rechaza la importación masiva a un usuario externo', async () => {
+    const respuesta = await conToken(api().post('/api/documentos/ingesta-masiva'), tokenExterno).send({
+      filas: [
+        {
+          fila: 50,
+          id_fondo: 1,
+          protocolo: 'P-META-EXTERNO',
+          anio: ANIO_PRUEBA,
+          registro: 'R-META-EXTERNO',
+          titulo: 'No autorizado',
+          tipologia: 'Poder',
+        },
+      ],
+    });
+
+    expect(respuesta.status).toBe(403);
+  });
+
   it('ING-10 permite la carga al administrador', async () => {
     const tokenAdmin = await obtenerToken();
     const respuesta = await ingesta(pdf(), { ...METADATOS, registro: 'R-005' }, tokenAdmin);

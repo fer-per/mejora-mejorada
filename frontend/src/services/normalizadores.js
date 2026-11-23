@@ -34,9 +34,10 @@ export function normalizarResumen(documento) {
     repositorio: documento.repositorio,
     relevancia: documento.relevancia,
     miniatura_url: documento.miniaturaUrl ?? null,
-    archivo_url: documento.archivoUrl ?? `/api/documentos/${documento.id}/archivo`,
-    digitalizado:
-      documento.digitalizado ?? Boolean(documento.archivoUrl ?? documento.miniaturaUrl ?? documento.id),
+    archivo_url: Object.prototype.hasOwnProperty.call(documento, 'archivoUrl')
+      ? documento.archivoUrl
+      : `/api/documentos/${documento.id}/archivo`,
+    digitalizado: documento.digitalizado ?? Boolean(documento.archivoUrl ?? documento.miniaturaUrl),
     descriptores: listaDescriptores(documento.descriptores),
     alcance: documento.alcanceContenido ?? null,
     anulado: Boolean(documento.anulado),

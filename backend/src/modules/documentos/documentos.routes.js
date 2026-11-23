@@ -12,7 +12,11 @@ import {
   esquemaHistorial,
   esquemaId,
   esquemaIngestaDocumento,
+  esquemaIngestaMasiva,
   esquemaRevertir,
+  esquemaSubirAcervo,
+  esquemaValidarAcervo,
+  esquemaVincularAcervo,
 } from './documentos.schema.js';
 import * as controlador from './documentos.controller.js';
 
@@ -31,6 +35,41 @@ router.post(
   subida.single('archivo'),
   validar(esquemaIngestaDocumento),
   controlador.crear,
+);
+
+router.post(
+  '/ingesta-masiva',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  validar(esquemaIngestaMasiva, 'body'),
+  controlador.crearMasivo,
+);
+
+router.post(
+  '/acervo/validar',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  validar(esquemaValidarAcervo, 'body'),
+  controlador.validarAcervo,
+);
+
+router.post(
+  '/acervo/escanear',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  controlador.escanearAcervo,
+);
+
+router.post(
+  '/acervo/vincular',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  validar(esquemaVincularAcervo, 'body'),
+  controlador.vincularAcervo,
+);
+
+router.post(
+  '/acervo/subir',
+  autorizar(PERFILES.ADMINISTRADOR, PERFILES.ARCHIVISTA),
+  subida.single('archivo'),
+  validar(esquemaSubirAcervo, 'body'),
+  controlador.subirAcervo,
 );
 
 router.get('/busqueda/simple', validar(esquemaBusquedaSimple, 'query'), controlador.buscarSimple);

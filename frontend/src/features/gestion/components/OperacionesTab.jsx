@@ -91,6 +91,7 @@ export default function OperacionesTab({ onCambio }) {
           </div>
         ) : (
           <div className="tabla-usuarios-contenedor">
+            <p className="tabla-scroll-aviso">Desplace horizontalmente para ver todas las columnas.</p>
             <table className="table tabla-usuarios tabla-auditoria align-middle">
               <thead>
                 <tr>

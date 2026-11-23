@@ -3,6 +3,7 @@ import { manejar } from '../../common/async-handler.js';
 import { abrirObjeto } from '../../config/almacenamiento.js';
 import { errores } from '../../common/errors.js';
 import * as servicio from './documentos.service.js';
+import * as acervo from './acervo.service.js';
 
 async function transmitir(preparado, res, next, cache) {
   let flujo;
@@ -51,6 +52,29 @@ export const crear = manejar(async (req, res) => {
 export const crearMasivo = manejar(async (req, res) => {
   const resultado = await servicio.crearDocumentosMetadatos(req.datos, req.usuario);
   res.status(201).json(resultado);
+});
+
+export const validarAcervo = manejar(async (req, res) => {
+  const resultado = await acervo.validarManifiesto(req.datos.archivos);
+  res.json(resultado);
+});
+
+export const escanearAcervo = manejar(async (req, res) => {
+  const resultado = await acervo.escanearRepositorio();
+  res.json(resultado);
+});
+
+export const vincularAcervo = manejar(async (req, res) => {
+  const resultado = await acervo.vincularAsignaciones(
+    req.datos.asignaciones,
+    req.usuario,
+  );
+  res.json(resultado);
+});
+
+export const subirAcervo = manejar(async (req, res) => {
+  const documento = await acervo.subirArchivoAcervo(req.datos, req.file, req.usuario);
+  res.status(201).json({ documento });
 });
 
 export const actualizar = manejar(async (req, res) => {

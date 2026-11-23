@@ -895,6 +895,73 @@ export async function revertirCambioDocumento(idCambio, idUsuario, { forzar = fa
   });
 }
 
+export async function listarDocumentosParaVinculacion() {
+  const { rows } = await consultar(
+    `SELECT a.id, a.ruta_archivo, a.formato, a.tamano_bytes, a.anulado,
+            ap.anio AS anio, p.numero AS protocolo, r.numero AS registro,
+            te.nombre AS titulo, te.mes,
+            COALESCE(
+              json_agg(i.nombre ORDER BY i.nombre) FILTER (WHERE i.nombre IS NOT NULL),
+              '[]'::json
+            ) AS interesados
+       FROM archivo a
+       JOIN titulo_escritura te ON te.id = a.id_titulo_escritura
+       JOIN registro r ON r.id = te.id_registro
+       JOIN anio_protocolo ap ON ap.id = r.id_anio_protocolo
+       JOIN protocolo p ON p.id = ap.id_protocolo
+       LEFT JOIN rol_interesado ri ON ri.id_titulo_escritura = te.id
+       LEFT JOIN interesado i ON i.id = ri.id_interesado
+      GROUP BY a.id, ap.anio, p.numero, r.numero, te.nombre, te.mes
+      ORDER BY a.id`,
+  );
+  return rows;
+}
+
+export async function obtenerDocumentoParaVinculacion(id) {
+  const { rows } = await consultar(
+    `SELECT a.id, a.ruta_archivo, a.anulado, a.tamano_bytes, a.formato,
+            te.nombre AS titulo, te.mes
+       FROM archivo a
+       JOIN titulo_escritura te ON te.id = a.id_titulo_escritura
+      WHERE a.id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+export async function buscarDocumentoPorRuta(rutaArchivo) {
+  const { rows } = await consultar(
+    `SELECT id, ruta_archivo FROM archivo WHERE lower(ruta_archivo) = lower($1)`,
+    [rutaArchivo],
+  );
+  return rows[0] ?? null;
+}
+
+export async function vincularArchivoDocumento(id, archivo, idUsuario) {
+  const { rows } = await consultar(
+    `UPDATE archivo
+        SET ruta_archivo = $1,
+            nombre_original = $2,
+            tamano_bytes = $3,
+            formato = $4,
+            id_usuario_actualizacion = $5,
+            fecha_actualizacion = now()
+      WHERE id = $6
+        AND (ruta_archivo IS NULL OR lower(ruta_archivo) = lower($1))
+        AND anulado = false
+      RETURNING id`,
+    [
+      archivo.ruta,
+      archivo.nombreOriginal,
+      archivo.tamanoBytes,
+      archivo.formato,
+      idUsuario,
+      id,
+    ],
+  );
+  return rows[0] ?? null;
+}
+
 export async function obtenerArchivo(id) {
   const { rows } = await consultar(
     `SELECT a.ruta_archivo, a.ruta_miniatura, a.formato, a.anulado, te.nombre AS titulo

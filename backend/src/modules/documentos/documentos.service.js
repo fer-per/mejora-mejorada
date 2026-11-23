@@ -9,6 +9,8 @@ import { tituloDesdeNombre, validarArchivoDigital } from '../../common/archivos.
 import { registrarAccion } from '../auditoria/auditoria.repository.js';
 import * as historial from '../gestion/historial.repository.js';
 import * as repositorio from './documentos.repository.js';
+import { esquemaFilaMasiva } from './documentos.schema.js';
+import { exigirRutaAcervo, resolverRutaAcervo } from './rutas-acervo.js';
 
 function aIso(fecha) {
   return fecha instanceof Date ? fecha.toISOString() : fecha;
@@ -153,18 +155,86 @@ async function guardarArchivoDigital(rutaRelativa, buffer, tipoContenido) {
 }
 
 export async function crearDocumento(datos, archivoRecibido, usuario) {
-  if (!archivoRecibido) {
-    throw errores.archivoInvalido('Debe adjuntar un archivo PDF/A o TIFF en el campo "archivo".');
+  let rutaRelativa;
+  let formato;
+  let nombreOriginal;
+  let tamanoBytes;
+  let rutaLocal = null;
+  let escrito = false;
+
+  if (datos.ruta_relativa) {
+    const validacion = exigirRutaAcervo(datos.ruta_relativa, { incluirRaiz: true });
+    rutaRelativa = validacion.rutaRelativa;
+    formato = validacion.formato;
+    nombreOriginal = validacion.nombreArchivo;
+
+    if (archivoRecibido) {
+      const contenido = validarArchivoDigital({
+        buffer: archivoRecibido.buffer,
+        nombreOriginal: archivoRecibido.originalname,
+        tipoMime: archivoRecibido.mimetype,
+      });
+      if (contenido.extension !== validacion.extension || contenido.formato !== formato) {
+        throw errores.archivoInvalido(
+          'El contenido del archivo no coincide con la extensión de la ruta.',
+        );
+      }
+      nombreOriginal = validacion.nombreArchivo;
+      tamanoBytes = archivoRecibido.size;
+    }
+
+    const existente = await repositorio.buscarDocumentoPorRuta(rutaRelativa);
+    if (existente) {
+      throw errores.conflictoRuta(`La ruta ya está vinculada al documento #${existente.id}.`);
+    }
+
+    const absoluta = resolverRutaAcervo(rutaRelativa);
+    const info = usaAlmacenamientoRemoto
+      ? await existeObjeto(rutaRelativa)
+      : await fsp.stat(absoluta).then((info) => (info.isFile() ? info : null)).catch(() => null);
+
+    if (!info && !archivoRecibido) {
+      throw errores.archivoInvalido(
+        'El archivo no existe en el repositorio; adjunte el PDF/A o TIFF para crearlo.',
+      );
+    }
+
+    if (!info) {
+      rutaLocal = await guardarArchivoDigital(
+        rutaRelativa,
+        archivoRecibido.buffer,
+        usaAlmacenamientoRemoto
+          ? formato === 'PDF/A'
+            ? 'application/pdf'
+            : 'image/tiff'
+          : undefined,
+      );
+      escrito = true;
+      tamanoBytes = archivoRecibido.size;
+    } else {
+      tamanoBytes = usaAlmacenamientoRemoto ? tamanoBytes : info.size;
+    }
+  } else {
+    if (!archivoRecibido) {
+      throw errores.archivoInvalido('Debe adjuntar un archivo PDF/A o TIFF en el campo "archivo".');
+    }
+
+    const contenido = validarArchivoDigital({
+      buffer: archivoRecibido.buffer,
+      nombreOriginal: archivoRecibido.originalname,
+      tipoMime: archivoRecibido.mimetype,
+    });
+    formato = contenido.formato;
+    nombreOriginal = archivoRecibido.originalname;
+    tamanoBytes = archivoRecibido.size;
+    rutaRelativa = `ingesta/${datos.anio}/${crypto.randomUUID()}.${contenido.extension}`;
+    rutaLocal = await guardarArchivoDigital(
+      rutaRelativa,
+      archivoRecibido.buffer,
+      contenido.tipoContenido,
+    );
+    escrito = true;
   }
-
-  const { formato, extension, tipoContenido } = validarArchivoDigital({
-    buffer: archivoRecibido.buffer,
-    nombreOriginal: archivoRecibido.originalname,
-    tipoMime: archivoRecibido.mimetype,
-  });
-
-  const rutaRelativa = `ingesta/${datos.anio}/${crypto.randomUUID()}.${extension}`;
-  const rutaLocal = await guardarArchivoDigital(rutaRelativa, archivoRecibido.buffer, tipoContenido);
 
   let creado;
   try {
@@ -176,7 +246,7 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
         protocolo: datos.protocolo,
         anio: datos.anio,
         registro: datos.registro,
-        titulo: datos.titulo ?? tituloDesdeNombre(archivoRecibido.originalname),
+        titulo: datos.titulo ?? tituloDesdeNombre(nombreOriginal),
         mes: datos.mes,
         idResponsableDescripcion: datos.id_responsable_descripcion,
         idUsuarioCarga: usuario.id,
@@ -195,17 +265,20 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
       {
         formato,
         ruta: rutaRelativa,
-        nombreOriginal: archivoRecibido.originalname,
-        tamanoBytes: archivoRecibido.size,
+        nombreOriginal,
+        tamanoBytes,
       },
     );
   } catch (error) {
-    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    if (escrito && rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    if (error.code === '23505') {
+      throw errores.conflictoRuta('La ruta ya está registrada por otro documento.');
+    }
     throw error;
   }
 
   if (!creado) {
-    if (rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
+    if (escrito && rutaLocal) await fsp.unlink(rutaLocal).catch(() => {});
     throw errores.noEncontrado('Fondo');
   }
 
@@ -213,40 +286,73 @@ export async function crearDocumento(datos, archivoRecibido, usuario) {
 
   await registrarAccion({
     idUsuario: usuario.id,
-    tipoAccion: 'CARGA_DOCUMENTO',
-    descripcion: `Carga del documento #${creado.id} "${documento.titulo}" (${formato}, ${archivoRecibido.size} bytes) en el fondo #${datos.id_fondo}.`,
+    tipoAccion: datos.ruta_relativa ? 'CARGA_ARCHIVO_ACERVO' : 'CARGA_DOCUMENTO',
+    descripcion: `Carga del documento #${creado.id} "${documento.titulo}" (${formato}, ${tamanoBytes} bytes) en la ruta "${rutaRelativa}".`,
   });
 
   return aDtoDetalle(documento);
 }
 
 export async function crearDocumentosMetadatos(datos, usuario) {
-  const filas = datos.filas.map((fila) => ({
-    fila: fila.fila,
-    idFondo: fila.id_fondo,
-    idEscribano: fila.id_escribano,
-    escribano: fila.escribano,
-    protocolo: fila.protocolo,
-    anio: fila.anio,
-    registro: fila.registro,
-    titulo: fila.titulo,
-    mes: fila.mes,
-    idResponsableDescripcion: fila.id_responsable_descripcion,
-    responsableDescripcion: fila.responsable_descripcion,
-    tipologia: fila.tipologia,
-    serie: fila.serie,
-    subserie: fila.subserie,
-    folios: fila.folios,
-    estadoConservacion: fila.estado_conservacion,
-    alcanceContenido: fila.alcance_contenido,
-    descriptores: fila.descriptores,
-    fechaProduccion: fila.fecha_produccion,
-    observaciones: fila.observaciones,
-    ubicacionFisica: fila.ubicacion_fisica,
-    interesados: fila.interesados,
-  }));
+  const filas = [];
+  const posiciones = [];
+  const resultadosParciales = new Array(datos.filas.length);
 
-  const resultados = await repositorio.crearDocumentosMetadatos(filas, usuario.id);
+  datos.filas.forEach((fila, indice) => {
+    const validacion = esquemaFilaMasiva.safeParse(fila);
+    if (!validacion.success) {
+      const numeroDeclarado = Number(
+        fila && typeof fila === 'object' ? fila.fila : Number.NaN,
+      );
+      resultadosParciales[indice] = {
+        fila: Number.isInteger(numeroDeclarado) && numeroDeclarado > 0
+          ? numeroDeclarado
+          : indice + 1,
+        estado: 'error',
+        mensaje: validacion.error.issues[0]?.message ?? 'Fila inválida.',
+      };
+      return;
+    }
+
+    const valida = validacion.data;
+    posiciones.push(indice);
+    filas.push({
+      fila: valida.fila,
+      idFondo: valida.id_fondo,
+      idEscribano: valida.id_escribano,
+      escribano: valida.escribano,
+      protocolo: valida.protocolo,
+      anio: valida.anio,
+      registro: valida.registro,
+      titulo: valida.titulo,
+      mes: valida.mes,
+      idResponsableDescripcion: valida.id_responsable_descripcion,
+      responsableDescripcion: valida.responsable_descripcion,
+      tipologia: valida.tipologia,
+      serie: valida.serie,
+      subserie: valida.subserie,
+      folios: valida.folios,
+      estadoConservacion: valida.estado_conservacion,
+      alcanceContenido: valida.alcance_contenido,
+      descriptores: valida.descriptores,
+      fechaProduccion: valida.fecha_produccion,
+      observaciones: valida.observaciones,
+      ubicacionFisica: valida.ubicacion_fisica,
+      interesados: valida.interesados,
+    });
+  });
+
+  if (filas.length) {
+    const resultadosRepositorio = await repositorio.crearDocumentosMetadatos(
+      filas,
+      usuario.id,
+    );
+    resultadosRepositorio.forEach((resultado, indice) => {
+      resultadosParciales[posiciones[indice]] = resultado;
+    });
+  }
+
+  const resultados = resultadosParciales.filter(Boolean);
   const creados = resultados.filter((resultado) => resultado.estado === 'creado').length;
   const omitidos = resultados.filter((resultado) => resultado.estado === 'omitido').length;
   const erroresFila = resultados.filter((resultado) => resultado.estado === 'error').length;
@@ -254,11 +360,11 @@ export async function crearDocumentosMetadatos(datos, usuario) {
   await registrarAccion({
     idUsuario: usuario.id,
     tipoAccion: 'CARGA_MASIVA_METADATOS',
-    descripcion: `Carga masiva de metadatos: ${creados} creado(s), ${omitidos} omitido(s) y ${erroresFila} error(es) de ${filas.length} fila(s).`,
+    descripcion: `Carga masiva de metadatos: ${creados} creado(s), ${omitidos} omitido(s) y ${erroresFila} error(es) de ${datos.filas.length} fila(s).`,
   });
 
   return {
-    total: filas.length,
+    total: datos.filas.length,
     creados,
     omitidos,
     errores: erroresFila,

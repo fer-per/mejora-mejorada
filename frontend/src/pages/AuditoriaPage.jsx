@@ -135,7 +135,7 @@ export default function AuditoriaPage() {
     <div className="app-fondo">
       <BarraNavegacion />
 
-      <main className="contenedor-busqueda">
+      <main className="contenedor-busqueda contenedor-ancho">
         <header className="encabezado-busqueda">
           <div>
             <p className="encabezado-etiqueta">Trazabilidad del sistema</p>
@@ -248,6 +248,7 @@ export default function AuditoriaPage() {
             </div>
           ) : (
             <div className="tabla-usuarios-contenedor">
+              <p className="tabla-scroll-aviso">Desplace horizontalmente para ver todas las columnas.</p>
               <table className="table tabla-usuarios tabla-auditoria align-middle">
                 <thead>
                   <tr>

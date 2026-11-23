@@ -27,8 +27,8 @@ export const errores = {
     new AppError(`${recurso} no encontrado.`, 404, 'NO_ENCONTRADO'),
   archivoNoDisponible: () =>
     new AppError('El archivo digital no está disponible en el repositorio.', 404, 'ARCHIVO_NO_DISPONIBLE'),
-  rutaInvalida: () =>
-    new AppError('La ubicación del archivo no es válida.', 400, 'RUTA_INVALIDA'),
+  rutaInvalida: (mensaje = 'La ubicación del archivo no es válida.') =>
+    new AppError(mensaje, 400, 'RUTA_INVALIDA'),
   sinResultados: () =>
     new AppError('No se encontraron documentos que coincidan con los criterios.', 404, 'SIN_RESULTADOS'),
   parametrosInvalidos: (detalles) =>
@@ -61,6 +61,8 @@ export const errores = {
     ),
   conflictoJerarquia: (mensaje) =>
     new AppError(mensaje, 409, 'CONFLICTO_JERARQUIA'),
+  conflictoRuta: (mensaje) =>
+    new AppError(mensaje, 409, 'CONFLICTO_RUTA'),
 };
 
 export default AppError;

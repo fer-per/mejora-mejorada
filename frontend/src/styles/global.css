@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --vino: #6d1a1d;
   --vino-oscuro: #4a1012;
   --vino-claro: #8e2a2e;
@@ -2297,3 +2297,226 @@ body {
   }
 }
 
+
+
+/* ------------------------------------------------------------------ */
+/* Ajustes de adaptaci?n a pantalla y paneles de resultados            */
+/* ------------------------------------------------------------------ */
+
+.app-fondo {
+  overflow-x: hidden;
+}
+
+.contenedor-busqueda {
+  width: 100%;
+  max-width: 1480px;
+  min-width: 0;
+}
+
+.contenedor-busqueda.contenedor-ancho {
+  max-width: 1800px;
+}
+
+.contenedor-busqueda > *,
+.panel-busqueda,
+.panel-resultados,
+.panel-detalle {
+  min-width: 0;
+}
+
+.contenedor-busqueda .row > * {
+  min-width: 0;
+}
+
+.panel-busqueda,
+.panel-resultados {
+  width: 100%;
+  max-width: 100%;
+}
+
+.resultados-barra {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.resultados-barra > div {
+  min-width: 0;
+}
+
+.resultados-acciones {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.buscador-avanzado-acciones,
+.seccion-formulario-cabecera {
+  flex-wrap: wrap;
+}
+
+.panel-busqueda-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b9aaa0 transparent;
+}
+
+.tab-busqueda {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tabla-usuarios-contenedor {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #b9aaa0 transparent;
+}
+
+.tabla-usuarios-contenedor::-webkit-scrollbar {
+  height: 10px;
+}
+
+.tabla-usuarios-contenedor::-webkit-scrollbar-thumb {
+  border: 2px solid var(--blanco);
+  border-radius: 8px;
+  background: #b9aaa0;
+}
+
+.tabla-usuarios-contenedor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabla-usuarios {
+  width: 100%;
+}
+
+.tabla-scroll-aviso {
+  display: none;
+  margin: 0 0 6px;
+  color: var(--gris-claro);
+  font-size: 0.72rem;
+}
+
+/* Resultados de carga masiva: ruta y comparaci?n con espacio ?til. */
+.tabla-ingesta-masiva {
+  min-width: 1180px;
+}
+
+.tabla-ingesta-masiva .celda-archivo-acervo {
+  width: 25rem;
+  min-width: 20rem;
+  max-width: 32rem;
+}
+
+.tabla-ingesta-masiva .celda-archivo-acervo .form-control {
+  width: 100%;
+}
+
+/* Modal: nunca excede la pantalla ni genera cortes internos. */
+.modal-fondo {
+  padding: clamp(10px, 2vw, 24px);
+}
+
+.modal-panel {
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.alert {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1399px) {
+  .tabla-ingesta-masiva {
+    min-width: 980px;
+  }
+
+  .tabla-ingesta-masiva .celda-archivo-acervo {
+    width: 20rem;
+    min-width: 17rem;
+  }
+
+  .tabla-ingesta-masiva .col-ingesta-opcional {
+    display: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  .tabla-scroll-aviso {
+    display: block;
+  }
+}
+
+@media (max-width: 991px) {
+  .resultados-barra {
+    align-items: flex-start;
+  }
+
+  .resultados-barra .resultados-acciones {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .fila-interesado {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fila-interesado .boton-quitar {
+    justify-self: end;
+  }
+
+  .detalle-auditoria {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .contenedor-busqueda {
+    padding: 18px 12px 28px;
+  }
+
+  .panel-busqueda-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    overflow-x: visible;
+  }
+
+  .tab-busqueda {
+    flex: 1 1 auto;
+    padding: 8px 11px;
+  }
+
+  .tabla-ingesta-masiva {
+    min-width: 860px;
+  }
+
+  .tabla-ingesta-masiva .celda-archivo-acervo {
+    width: 17rem;
+    min-width: 15rem;
+  }
+
+  .tabla-scroll-aviso {
+    display: block;
+  }
+
+  .paginacion {
+    justify-content: flex-start;
+  }
+
+  .modal-panel {
+    max-height: calc(100vh - 20px);
+  }
+
+  .fila-interesado {
+    grid-template-columns: 1fr;
+  }
+
+  .fila-interesado .boton-quitar {
+    justify-self: end;
+  }
+}

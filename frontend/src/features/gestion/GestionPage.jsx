@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BarraNavegacion from '../../components/BarraNavegacion.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -43,27 +43,27 @@ export default function GestionPage() {
     <div className="app-fondo">
       <BarraNavegacion />
 
-      <main className="contenedor-busqueda">
+      <main className="contenedor-busqueda contenedor-ancho">
         <header className="encabezado-busqueda">
           <div>
-            <p className="encabezado-etiqueta">Procesos tÃ©cnicos archivÃ­sticos</p>
-            <h1 className="encabezado-titulo">GestiÃ³n documental</h1>
+            <p className="encabezado-etiqueta">Procesos técnicos archivísticos</p>
+            <h1 className="encabezado-titulo">Gestión documental</h1>
             <p className="encabezado-descripcion">
-              Edite metadatos e interesados, administre la jerarquÃ­a archivÃ­stica, revise el historial con valores
+              Edite metadatos e interesados, administre la jerarquía archivística, revise el historial con valores
               anteriores y posteriores, y detecte duplicados.
             </p>
           </div>
           <div className="resumen-datos">
             <div className="dato-resumen">
-              <span className="dato-resumen-numero">{resumen?.documentos ?? 'â€”'}</span>
+              <span className="dato-resumen-numero">{resumen?.documentos ?? '—'}</span>
               <span className="dato-resumen-etiqueta">Documentos activos</span>
             </div>
             <div className="dato-resumen">
-              <span className="dato-resumen-numero">{resumen?.anulados ?? 'â€”'}</span>
+              <span className="dato-resumen-numero">{resumen?.anulados ?? '—'}</span>
               <span className="dato-resumen-etiqueta">Anulados</span>
             </div>
             <div className="dato-resumen">
-              <span className="dato-resumen-numero">{resumen?.cambios ?? 'â€”'}</span>
+              <span className="dato-resumen-numero">{resumen?.cambios ?? '—'}</span>
               <span className="dato-resumen-etiqueta">Cambios registrados</span>
             </div>
           </div>
