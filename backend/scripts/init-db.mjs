@@ -10,6 +10,10 @@ const { Client, Pool } = pg;
 const argumentos = process.argv.slice(2);
 const soloEsquema = argumentos.includes('--solo-esquema');
 const soloSeed = argumentos.includes('--solo-seed');
+const esProduccion = process.env.NODE_ENV === 'production';
+const confirmacion = argumentos
+  .find((argumento) => argumento.startsWith('--confirmar='))
+  ?.slice('--confirmar='.length);
 
 const rutaBackend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rutaProyecto = path.resolve(rutaBackend, '..');
@@ -60,6 +64,11 @@ async function asegurarBaseDeDatos() {
 
 async function principal() {
   const enEspacio = Date.now();
+  if (esProduccion) {
+    throw new Error(
+      'init-db no se ejecuta con NODE_ENV=production. Use "npm run db:migrar" y "npm run admin:crear".',
+    );
+  }
   await asegurarBaseDeDatos();
 
   const pool = new Pool({
@@ -69,6 +78,19 @@ async function principal() {
   });
   try {
     if (!soloSeed) {
+      const { rows: existente } = await pool.query(
+        'SELECT to_regclass($1) IS NOT NULL AS existe',
+        [`${esquema}.archivo`],
+      );
+      if (existente[0]?.existe) {
+        const { rows: conteo } = await pool.query('SELECT COUNT(*)::int AS total FROM archivo');
+        if (conteo[0].total > 0 && confirmacion !== nombreBase) {
+          throw new Error(
+            `La base "${nombreBase}" ya contiene ${conteo[0].total} documento(s). Repita con --confirmar=${nombreBase} para recrear el esquema.`,
+          );
+        }
+      }
+
       console.log(`[init-db] Recreando esquema "${esquema}"...`);
       await pool.query(`DROP SCHEMA IF EXISTS ${esquema} CASCADE`);
       await pool.query(`CREATE SCHEMA ${esquema}`);
@@ -81,10 +103,17 @@ async function principal() {
     }
 
     if (!soloEsquema) {
-      console.log('[init-db] Cargando datos semilla (database/seed.sql)...');
+      console.log('[init-db] Cargando cuentas demo y datos semilla...');
       if (soloSeed) {
-        await pool.query('TRUNCATE archivo, registro_auditoria, interesado, responsable_descripcion RESTART IDENTITY CASCADE');
+        await pool.query(
+          `TRUNCATE historial_cambio, rol_interesado, archivo, titulo_escritura,
+                    registro, anio_protocolo, protocolo, entidad_escribano, fondo,
+                    repositorio, responsable_descripcion, interesado,
+                    sesion, registro_auditoria, usuario
+           RESTART IDENTITY CASCADE`,
+        );
       }
+      await pool.query(await leerSql('seed-demo.sql'));
       await pool.query(await leerSql('seed.sql'));
       console.log('[init-db] Datos semilla cargados.');
       const resultado = await generarArchivos(pool, rutaRepositorio);

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { errores } from '../../common/errors.js';
 import { registrarAccion } from '../auditoria/auditoria.repository.js';
+import { revocarSesionesDeUsuario } from '../auth/sesiones.repository.js';
 import * as repositorio from './usuarios.repository.js';
 
 const COSTO_BCRYPT = 10;
@@ -109,6 +110,10 @@ export async function actualizar(id, datos, actor) {
 
   await repositorio.actualizarUsuario(id, cambios, hash);
 
+  if (hash || datos.estado === 'INACTIVO') {
+    await revocarSesionesDeUsuario(id);
+  }
+
   const campos = Object.keys(datos).filter((campo) => datos[campo] !== undefined);
   await registrarAccion({
     idUsuario: actor.id,
@@ -135,6 +140,10 @@ export async function cambiarEstado(id, estado, actor) {
   }
 
   await repositorio.cambiarEstado(id, estado);
+
+  if (estado === 'INACTIVO') {
+    await revocarSesionesDeUsuario(id);
+  }
 
   await registrarAccion({
     idUsuario: actor.id,

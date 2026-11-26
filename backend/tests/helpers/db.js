@@ -76,6 +76,7 @@ export async function reiniciarBaseDeDatos() {
     await cliente.query('DROP SCHEMA IF EXISTS public CASCADE');
     await cliente.query('CREATE SCHEMA public');
     await cliente.query(await leerSql('schema.sql'));
+    await cliente.query(await leerSql('seed-demo.sql'));
     await cliente.query(await leerSql('seed.sql'));
     await cliente.query(AJUSTAR_SECUENCIAS);
   } finally {

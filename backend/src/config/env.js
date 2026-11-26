@@ -23,7 +23,7 @@ const esquemaEnv = z
     JWT_EXPIRA_EN: z.string().default('8h'),
     BLOQUEO_INTENTOS: z.coerce.number().int().positive().default(5),
     BLOQUEO_MINUTOS: z.coerce.number().int().positive().default(15),
-    INGESTA_MAX_MB: z.coerce.number().int().positive().default(50),
+    INGESTA_MAX_MB: z.coerce.number().int().positive().default(60),
     RUTA_REPOSITORIO: z.string().default('../storage/repositorio'),
     RUTA_FRONTEND: z.string().default('../frontend/dist'),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
@@ -37,6 +37,15 @@ const esquemaEnv = z
     R2_PREFIX: z.string().default(''),
   })
   .superRefine((valor, ctx) => {
+    if (valor.NODE_ENV === 'production') {
+      if (valor.JWT_SECRET.length < 32 || /^cambie/i.test(valor.JWT_SECRET)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['JWT_SECRET'],
+          message: 'En producción JWT_SECRET debe tener al menos 32 caracteres y no ser el valor de ejemplo',
+        });
+      }
+    }
     if (valor.ALMACENAMIENTO !== 'r2') {
       return;
     }

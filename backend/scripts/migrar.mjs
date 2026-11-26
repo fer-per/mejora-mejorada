@@ -9,6 +9,7 @@ const { Client } = pg;
 const rutaBackend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rutaProyecto = path.resolve(rutaBackend, '..');
 const rutaMigraciones = path.join(rutaProyecto, 'database', 'migrations');
+const rutaEsquema = path.join(rutaProyecto, 'database', 'schema.sql');
 
 const conexion = {
   host: process.env.DB_HOST ?? 'localhost',
@@ -38,6 +39,20 @@ async function principal() {
   await cliente.connect();
 
   try {
+    await cliente.query(`CREATE SCHEMA IF NOT EXISTS ${esquema}`);
+    await cliente.query('CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public');
+    await cliente.query('CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA public');
+    await cliente.query('CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public');
+
+    const { rows: tablaBase } = await cliente.query(
+      'SELECT to_regclass($1) IS NOT NULL AS existe',
+      [`${esquema}.usuario`],
+    );
+    if (!tablaBase[0].existe) {
+      await cliente.query(await fs.readFile(rutaEsquema, 'utf8'));
+      console.log('[migrar] Esquema base aplicado (database/schema.sql).');
+    }
+
     await cliente.query(`
       CREATE TABLE IF NOT EXISTS migracion (
         nombre     VARCHAR(200) PRIMARY KEY,
@@ -68,7 +83,7 @@ async function principal() {
         console.log(`[migrar] Aplicada ${archivo}`);
       } catch (error) {
         await cliente.query('ROLLBACK');
-        throw new Error(`Falló la migración ${archivo}: ${error.message}`);
+        throw new Error(`Falló la migración ${archivo}: ${error.message}`, { cause: error });
       }
     }
 

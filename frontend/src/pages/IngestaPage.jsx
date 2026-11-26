@@ -26,7 +26,7 @@ const FORMULARIO_VACIO = {
 };
 
 const INTERESADO_VACIO = { nombre: '', documento: '', rol: '' };
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 60 * 1024 * 1024;
 const EXTENSIONES = ['pdf', 'tif', 'tiff'];
 
 export default function IngestaPage() {
@@ -78,7 +78,7 @@ export default function IngestaPage() {
     if (seleccionado.size > MAX_BYTES) {
       setArchivo(null);
       evento.target.value = '';
-      setError('El archivo supera el tamaño máximo permitido de 50 MB.');
+      setError('El archivo supera el tamaño máximo permitido de 60 MB.');
       return;
     }
 
@@ -179,7 +179,7 @@ export default function IngestaPage() {
               <span className="dato-resumen-etiqueta">Formato</span>
             </div>
             <div className="dato-resumen">
-              <span className="dato-resumen-numero">50 MB</span>
+              <span className="dato-resumen-numero">60 MB</span>
               <span className="dato-resumen-etiqueta">Tamaño máximo</span>
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function IngestaPage() {
               <span className="zona-archivo-ayuda">
                 {archivo
                   ? `${(archivo.size / (1024 * 1024)).toFixed(2)} MB · listo para cargar`
-                  : 'Extensiones permitidas: .pdf, .tif, .tiff · máximo 50 MB'}
+                  : 'Extensiones permitidas: .pdf, .tif, .tiff · máximo 60 MB'}
               </span>
               <input
                 id="archivo"

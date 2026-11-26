@@ -1,7 +1,7 @@
 import { normalizarFicha, normalizarResultado } from './normalizadores.js';
 
-const CLAVE_TOKEN = 'siarc_ara_piloto_token';
 const CLAVE_USUARIO = 'siarc_ara_piloto_usuario';
+const CLAVE_TOKEN_LEGADO = 'siarc_ara_piloto_token';
 export const EVENTO_SESION = 'siarc-ara:sesion-invalida';
 
 const PERFILES = {
@@ -10,12 +10,8 @@ const PERFILES = {
   USUARIO_EXTERNO: 'viewer',
 };
 
-export function obtenerToken() {
-  return localStorage.getItem(CLAVE_TOKEN);
-}
-
-export function guardarSesion(token, usuario) {
-  localStorage.setItem(CLAVE_TOKEN, token);
+export function guardarSesion(usuario) {
+  localStorage.removeItem(CLAVE_TOKEN_LEGADO);
   localStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
 }
 
@@ -29,7 +25,7 @@ export function leerUsuario() {
 }
 
 export function limpiarSesion() {
-  localStorage.removeItem(CLAVE_TOKEN);
+  localStorage.removeItem(CLAVE_TOKEN_LEGADO);
   localStorage.removeItem(CLAVE_USUARIO);
 }
 
@@ -55,23 +51,39 @@ function mensajeError(datos) {
   return mensaje;
 }
 
+const TIEMPO_LIMITE_MS = 30_000;
+const TIEMPO_LIMITE_ARCHIVO_MS = 60_000;
+
+async function solicitar(ruta, opciones, limiteMs) {
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), limiteMs);
+  try {
+    return await fetch(ruta, { ...opciones, signal: controlador.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('La solicitud tardó demasiado. Intente nuevamente.', { cause: error });
+    }
+    throw new Error('No se pudo conectar con el servidor.', { cause: error });
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
 export async function peticion(ruta, opciones = {}) {
   const { metodo = 'GET', cuerpo, formulario } = opciones;
   const cabeceras = { Accept: 'application/json' };
   if (cuerpo && !formulario) cabeceras['Content-Type'] = 'application/json';
-  const token = obtenerToken();
-  if (token) cabeceras.Authorization = `Bearer ${token}`;
 
-  let respuesta;
-  try {
-    respuesta = await fetch(ruta, {
+  const respuesta = await solicitar(
+    ruta,
+    {
       method: metodo,
       headers: cabeceras,
+      credentials: 'include',
       body: formulario ?? (cuerpo ? JSON.stringify(cuerpo) : undefined),
-    });
-  } catch {
-    throw new Error('No se pudo conectar con el servidor.');
-  }
+    },
+    TIEMPO_LIMITE_MS,
+  );
 
   const datos = await respuesta.json().catch(() => null);
 
@@ -88,16 +100,11 @@ export async function peticion(ruta, opciones = {}) {
 }
 
 export async function apiArchivo(ruta) {
-  const cabeceras = {};
-  const token = obtenerToken();
-  if (token) cabeceras.Authorization = `Bearer ${token}`;
-
-  let respuesta;
-  try {
-    respuesta = await fetch(ruta, { headers: cabeceras });
-  } catch {
-    throw new Error('No se pudo conectar con el servidor.');
-  }
+  const respuesta = await solicitar(
+    ruta,
+    { credentials: 'include', headers: { Accept: 'application/json' } },
+    TIEMPO_LIMITE_ARCHIVO_MS,
+  );
 
   if (respuesta.status === 401) {
     limpiarSesion();
@@ -118,7 +125,7 @@ export async function iniciarSesion(username, password) {
     metodo: 'POST',
     cuerpo: { usuario: username, contrasena: password },
   });
-  return { token: datos.token, user: normalizarUsuario(datos.usuario) };
+  return normalizarUsuario(datos.usuario);
 }
 
 export async function validarSesion() {

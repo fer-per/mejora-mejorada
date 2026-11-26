@@ -1,9 +1,11 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { consultar } from '../../config/database.js';
 import { config } from '../../config/env.js';
 import { errores } from '../../common/errors.js';
 import { registrarAccion } from '../auditoria/auditoria.repository.js';
+import { crearSesion, revocarSesion } from './sesiones.repository.js';
 
 const HASH_FANTASMA = bcrypt.hashSync('fantasma-siarc-ara', 10);
 
@@ -19,7 +21,7 @@ function construirUsuario(cuenta) {
   };
 }
 
-export async function iniciarSesion({ usuario, contrasena, ip }) {
+export async function iniciarSesion({ usuario, contrasena, ip, userAgent }) {
   const { rows } = await consultar(
     `SELECT id, nombres, apellidos, correo, nombre_usuario, password_hash, perfil,
             estado, intentos_fallidos, bloqueado_hasta
@@ -31,7 +33,7 @@ export async function iniciarSesion({ usuario, contrasena, ip }) {
   const cuenta = rows[0];
 
   if (!cuenta) {
-    bcrypt.compareSync(contrasena, HASH_FANTASMA);
+    await bcrypt.compare(contrasena, HASH_FANTASMA);
     await registrarAccion({
       tipoAccion: 'INICIO_SESION_FALLIDO',
       descripcion: `Inicio de sesión fallido: usuario inexistente "${usuario}" desde ${ip}.`,
@@ -59,7 +61,7 @@ export async function iniciarSesion({ usuario, contrasena, ip }) {
     throw errores.cuentaInactiva();
   }
 
-  const contrasenaCorrecta = bcrypt.compareSync(contrasena, cuenta.password_hash);
+  const contrasenaCorrecta = await bcrypt.compare(contrasena, cuenta.password_hash);
 
   if (!contrasenaCorrecta) {
     const intentos = cuenta.intentos_fallidos + 1;
@@ -97,6 +99,7 @@ export async function iniciarSesion({ usuario, contrasena, ip }) {
   );
 
   const usuarioDto = construirUsuario(cuenta);
+  const idSesion = crypto.randomUUID();
   const token = jwt.sign(
     {
       sub: cuenta.id,
@@ -105,8 +108,17 @@ export async function iniciarSesion({ usuario, contrasena, ip }) {
       nombreCompleto: usuarioDto.nombreCompleto,
     },
     config.jwt.secreto,
-    { expiresIn: config.jwt.expiraEn, issuer: 'siarc-ara' },
+    { expiresIn: config.jwt.expiraEn, issuer: 'siarc-ara', jwtid: idSesion },
   );
+  const expiracion = new Date(jwt.decode(token).exp * 1000);
+
+  await crearSesion({
+    id: idSesion,
+    idUsuario: cuenta.id,
+    expiraEn: expiracion,
+    ip,
+    userAgent,
+  });
 
   await registrarAccion({
     idUsuario: cuenta.id,
@@ -114,11 +126,13 @@ export async function iniciarSesion({ usuario, contrasena, ip }) {
     descripcion: `"${cuenta.nombre_usuario}" (${cuenta.perfil}) inició sesión desde ${ip}.`,
   });
 
-  const expiracion = new Date(jwt.decode(token).exp * 1000);
   return { token, expiracion, usuario: usuarioDto };
 }
 
-export async function cerrarSesion({ usuario, ip }) {
+export async function cerrarSesion({ usuario, sesionId, ip }) {
+  if (sesionId) {
+    await revocarSesion(sesionId);
+  }
   await registrarAccion({
     idUsuario: usuario.id,
     tipoAccion: 'CIERRE_SESION',

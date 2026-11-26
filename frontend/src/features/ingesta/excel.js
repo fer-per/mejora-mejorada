@@ -125,11 +125,6 @@ function fechaAiso(valor) {
   return '';
 }
 
-function enteroPositivo(valor) {
-  const numero = Number(textoPlano(valor).replace(',', '.'));
-  return Number.isInteger(numero) && numero > 0 ? numero : null;
-}
-
 function contarFolios(valor) {
   const texto = textoPlano(valor).trim();
   if (!texto || /^sin folios/i.test(texto)) return null;

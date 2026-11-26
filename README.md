@@ -96,18 +96,27 @@ sobre el esquema `siarc` sin borrar los datos.
 ```powershell
 cd backend
 npm install
-npm run db:reset    # crea el esquema (schema.sql + seed.sql) y siembra los datos
+npm run db:reset    # crea el esquema y carga cuentas demo + datos de ejemplo
 npm start           # API en http://localhost:4000
 ```
 
+> `db:reset` se niega a ejecutarse con `NODE_ENV=production`. Si el esquema ya
+> contiene documentos, exige confirmar la base:
+> `npm run db:reset -- --confirmar=siarc_db`.
+
 Scripts disponibles:
 
-- `npm run db:reset` — recrea el esquema y carga los datos de ejemplo.
+- `npm run db:reset` — recrea el esquema y carga `seed-demo.sql` + `seed.sql` (solo desarrollo).
 - `npm run db:schema` — solo crea el esquema.
-- `npm run db:seed` — solo carga los datos de ejemplo.
-- `npm run db:migrar` — aplica las migraciones pendientes de `database/migrations/` sin recrear los datos.
+- `npm run db:seed` — solo recarga cuentas demo y datos de ejemplo.
+- `npm run db:migrar` — crea el esquema base si falta y aplica las migraciones pendientes, sin borrar datos.
+- `npm run admin:crear` — crea el administrador inicial en producción (`ADMIN_USUARIO`, `ADMIN_CORREO`, `ADMIN_PASSWORD`).
+- `npm run db:preflight` — diagnóstico de solo lectura: zona horaria, volumen y duplicados antes de migrar.
 - `npm run storage:subir` — sube el repositorio local (`storage/repositorio`) a Cloudflare R2.
 - `npm run dev` — arranque con recarga automática (`node --watch`).
+- `npm run lint` — análisis estático con ESLint.
+- `npm run test:unit` — pruebas unitarias (no requieren base de datos).
+- `npm test` — pruebas unitarias y de API (requieren PostgreSQL).
 
 ### Almacenamiento en Cloudflare R2
 
@@ -145,15 +154,14 @@ npm run preview     # sirve la compilación de producción
 
 > En Windows, si la política de ejecución bloquea `npm.ps1`, use `npm.cmd`.
 
-## Credenciales de demostración
+## Credenciales de desarrollo
 
-Cargadas por `database/seed.sql`:
+Las cuentas de demostración se cargan solo en desarrollo y pruebas desde
+`database/seed-demo.sql` (usuarios `anaquispe`, `lmamani` y `cflores`, uno por
+perfil). No se cargan en producción: la cuenta inicial se crea con
+`npm run admin:crear` y una contraseña propia.
 
-| Usuario    | Contraseña     | Perfil          |
-|------------|----------------|-----------------|
-| `anaquispe`| `Admin123!`    | ADMINISTRADOR   |
-| `lmamani`  | `Archivo123!`  | ARCHIVISTA      |
-| `cflores`  | `Consulta123!` | USUARIO_EXTERNO |
+> No reutilice estas cuentas en un servidor accesible desde internet.
 
 ## Endpoints principales
 
@@ -188,11 +196,18 @@ La carga usa `multipart/form-data` con el archivo en el campo `archivo` y los me
 como campos de texto (`id_fondo`, `protocolo`, `anio`, `registro`, `tipologia`, etc.).
 La validación es básica: extensión permitida (`.pdf`, `.tif`, `.tiff`), tipo MIME y
 firma binaria (`%PDF-` para PDF y `II*\0`/`MM\0*` para TIFF). El tamaño máximo se
-configura con `INGESTA_MAX_MB` (50 MB por defecto).
+configura con `INGESTA_MAX_MB` (60 MB por defecto).
 
 Alcance del piloto: no se ejecuta OCR/HTR ni se valida la resolución DPI o la
 conformidad PDF/A con veraPDF; tampoco se generan miniaturas automáticamente para los
 archivos cargados. Estas comprobaciones quedan documentadas como trabajo futuro.
+
+## Calidad e integración continua
+
+- **Backend:** `npm run lint`, `npm run test:unit` (sin base de datos) y `npm test` (con PostgreSQL).
+- **Frontend:** `npm run lint`, `npm test` y `npm run build`.
+- El flujo de GitHub Actions (`.github/workflows/ci.yml`) ejecuta lint, pruebas, compilación y
+  `npm audit` (solo dependencias de producción) en cada push y pull request.
 
 ## Despliegue en producción
 
@@ -202,8 +217,9 @@ Nginx instalados:
 ```bash
 cd frontend && npm ci && npm run build
 cd ../backend && npm ci
-cp .env.example .env        # ajuste credenciales, JWT_SECRET y R2
-npm run db:reset            # instalación nueva; use db:migrar en actualizaciones
+cp .env.example .env        # ajuste NODE_ENV=production, credenciales, JWT_SECRET (>=32) y R2
+npm run db:migrar           # crea el esquema base si falta y aplica migraciones
+npm run admin:crear         # crea el administrador inicial con ADMIN_*
 npm run storage:subir
 pm2 start ecosystem.config.cjs
 pm2 startup && pm2 save
@@ -216,7 +232,13 @@ certificado con `certbot --nginx`.
 ## Seguridad y privacidad
 
 - Las contraseñas se almacenan con hash `bcrypt`; nunca en texto plano.
-- El token JWT se envía en la cabecera `Authorization: Bearer <token>`.
+- El JWT se entrega en una cookie `HttpOnly`, `Secure` (en producción) y
+  `SameSite=Strict`; el frontend no guarda el token en `localStorage`.
+- Cada sesión se registra en la tabla `sesion` y es revocable: el cierre de sesión,
+  el cambio de contraseña y la desactivación del usuario invalidan los tokens emitidos.
+  En producción el token no se devuelve en el cuerpo de la respuesta.
+- Los clientes de API pueden seguir enviando `Authorization: Bearer <token>`, siempre
+  que la sesión asociada siga activa.
 - El acceso a documentos queda sujeto al perfil: la edición está reservada a
   `ADMINISTRADOR` y `ARCHIVISTA`.
 - Toda operación sensible queda registrada en `registro_auditoria` para trazabilidad.

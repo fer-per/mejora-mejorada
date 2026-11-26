@@ -6,7 +6,6 @@ import {
   guardarSesion,
   leerUsuario,
   limpiarSesion,
-  obtenerToken,
   EVENTO_SESION,
 } from '../services/api.js';
 
@@ -17,17 +16,12 @@ export function AuthProvider({ children }) {
   const [cargandoSesion, setCargandoSesion] = useState(true);
 
   useEffect(() => {
-    if (!obtenerToken()) {
-      setCargandoSesion(false);
-      return undefined;
-    }
-
     let activo = true;
     validarSesion()
       .then((datos) => {
         if (!activo) return;
         setUsuario(datos);
-        guardarSesion(obtenerToken(), datos);
+        guardarSesion(datos);
       })
       .catch(() => {
         if (activo) setUsuario(null);
@@ -48,10 +42,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const iniciarSesion = useCallback(async (username, password) => {
-    const datos = await iniciarSesionApi(username, password);
-    guardarSesion(datos.token, datos.user);
-    setUsuario(datos.user);
-    return datos.user;
+    const user = await iniciarSesionApi(username, password);
+    guardarSesion(user);
+    setUsuario(user);
+    return user;
   }, []);
 
   const cerrarSesion = useCallback(async () => {

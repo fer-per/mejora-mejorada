@@ -42,7 +42,7 @@ export function crearApp() {
       origin(origen, callback) {
         callback(null, origen === config.corsOrigen);
       },
-      credentials: false,
+      credentials: true,
     }),
   );
   app.use(express.json({ limit: '5mb' }));

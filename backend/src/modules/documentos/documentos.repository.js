@@ -342,7 +342,7 @@ async function aplicarCambios(cliente, id, cambios, idUsuario) {
 
 function snapshotSinFecha(snapshot) {
   if (!snapshot) return null;
-  const { fecha_actualizacion, ...resto } = snapshot;
+  const { fecha_actualizacion: _fecha_actualizacion, ...resto } = snapshot;
   return resto;
 }
 

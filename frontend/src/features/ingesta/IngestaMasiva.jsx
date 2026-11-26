@@ -119,7 +119,6 @@ export default function IngestaMasiva({ catalogos = { fondos: [] }, onCargado })
 
   const conError = filasValidadas.filter((fila) => fila.errores.length > 0);
   const duplicadas = filasValidadas.filter((fila) => !fila.errores.length && fila.omitida);
-  const registradas = filasValidadas.filter((fila) => fila.rutaEstado === 'registrado');
   const cantidadCarpeta = useMemo(
     () => archivos.filter((archivo) => archivo.webkitRelativePath).length,
     [archivos],

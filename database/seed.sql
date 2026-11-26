@@ -2,18 +2,11 @@
 -- SIARC-ARA - Datos semilla (seed)
 -- Fondos históricos del Archivo Regional de Arequipa (delimitación documental
 -- de la tesis: solo fondos históricos en esta primera etapa).
+-- Requiere que las cuentas de database/seed-demo.sql se hayan cargado antes
+-- (referencias a id_usuario_carga). No cargar en producción.
 -- Los archivos físicos (PDF/A, TIFF y miniaturas) se generan con
 -- `npm run db:reset` (backend/scripts/init-db.mjs).
 -- =============================================================================
-
--- Cuentas de acceso (HU-17: autenticación y control de acceso por perfil)
-INSERT INTO usuario (nombres, apellidos, correo, nombre_usuario, password_hash, perfil) VALUES
-    ('Ana',    'Quispe Salas', 'ana.quispe@ara.gob.pe',  'anaquispe',
-     crypt('Admin123!', gen_salt('bf', 10)), 'ADMINISTRADOR'),
-    ('Luis',   'Mamani Roque', 'luis.mamani@ara.gob.pe', 'lmamani',
-     crypt('Archivo123!', gen_salt('bf', 10)), 'ARCHIVISTA'),
-    ('Carla',  'Flores Vida',  'carla.flores@correo.pe', 'cflores',
-     crypt('Consulta123!', gen_salt('bf', 10)), 'USUARIO_EXTERNO');
 
 INSERT INTO responsable_descripcion (nombre_completo) VALUES
     ('Luis Mamani Roque'),
@@ -181,7 +174,3 @@ FROM (
     GROUP BY ap.id_protocolo
 ) AS sub
 WHERE protocolo.id = sub.id_prot;
-
-INSERT INTO registro_auditoria (id_usuario, tipo_accion, descripcion)
-SELECT id, 'CREACION_USUARIO', 'Cuenta creada en la carga inicial del sistema SIARC-ARA.'
-FROM usuario;

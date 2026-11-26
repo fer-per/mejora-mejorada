@@ -55,6 +55,10 @@ export function manejarErrores(error, req, res, next) {
     mensaje = 'No fue posible conectar con la base de datos.';
   }
 
+  if (estado === 500) {
+    mensaje = 'Error interno del servidor.';
+  }
+
   const esErrorCliente = estado >= 400 && estado < 500;
   if (!esErrorCliente) {
     console.error(`[siarc-ara] ${req.method} ${req.originalUrl} ->`, error);

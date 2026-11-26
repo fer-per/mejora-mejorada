@@ -44,6 +44,21 @@ COMMENT ON TABLE usuario IS 'Clase Usuario (HU-03, HU-17): perfiles Administrado
 COMMENT ON COLUMN usuario.intentos_fallidos IS 'Conteo de intentos fallidos; a 5 se bloquea temporalmente la cuenta.';
 COMMENT ON COLUMN usuario.bloqueado_hasta IS 'Fin del bloqueo temporal por intentos fallidos de autenticación.';
 
+CREATE TABLE sesion (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_usuario     INTEGER     NOT NULL REFERENCES usuario (id) ON DELETE CASCADE,
+    fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expira_en      TIMESTAMPTZ NOT NULL,
+    revocada_en    TIMESTAMPTZ,
+    ip             VARCHAR(45),
+    user_agent     VARCHAR(255)
+);
+
+COMMENT ON TABLE sesion IS 'Sesiones revocables emitidas al iniciar sesión (Fase 3).';
+
+CREATE INDEX idx_sesion_usuario ON sesion (id_usuario);
+CREATE INDEX idx_sesion_expira ON sesion (expira_en);
+
 CREATE TABLE registro_auditoria (
     id          SERIAL PRIMARY KEY,
     id_usuario  INTEGER REFERENCES usuario (id) ON DELETE SET NULL,
@@ -215,3 +230,11 @@ CREATE TABLE historial_cambio (
 CREATE INDEX idx_historial_archivo ON historial_cambio (id_archivo, fecha_hora DESC);
 CREATE INDEX idx_historial_entidad ON historial_cambio (entidad, id_entidad, fecha_hora DESC);
 CREATE INDEX idx_historial_operacion ON historial_cambio (id_operacion);
+
+-- Integridad referencial y consultas por usuario (migración 006)
+CREATE INDEX idx_archivo_usuario_carga ON archivo (id_usuario_carga);
+CREATE INDEX idx_archivo_usuario_actualizacion ON archivo (id_usuario_actualizacion);
+CREATE INDEX idx_archivo_usuario_anulacion ON archivo (id_usuario_anulacion);
+CREATE INDEX idx_rol_interesado_interesado ON rol_interesado (id_interesado);
+CREATE INDEX idx_historial_usuario ON historial_cambio (id_usuario);
+CREATE INDEX idx_historial_origen ON historial_cambio (id_cambio_origen);

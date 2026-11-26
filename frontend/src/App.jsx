@@ -1,11 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import BusquedaPage from './pages/BusquedaPage.jsx';
-import IngestaPage from './pages/IngestaPage.jsx';
-import UsuariosPage from './pages/UsuariosPage.jsx';
-import AuditoriaPage from './pages/AuditoriaPage.jsx';
-import GestionPage from './pages/GestionPage.jsx';
+
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const BusquedaPage = lazy(() => import('./pages/BusquedaPage.jsx'));
+const IngestaPage = lazy(() => import('./pages/IngestaPage.jsx'));
+const UsuariosPage = lazy(() => import('./pages/UsuariosPage.jsx'));
+const AuditoriaPage = lazy(() => import('./pages/AuditoriaPage.jsx'));
+const GestionPage = lazy(() => import('./pages/GestionPage.jsx'));
 
 function RutaPrivada({ children }) {
   const { usuario } = useAuth();
@@ -27,7 +29,14 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
+        <Suspense
+          fallback={
+            <div className="text-center text-muted py-5" role="status">
+              Cargando interfaz...
+            </div>
+          }
+        >
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/busqueda"
@@ -72,6 +81,7 @@ export default function App() {
           <Route path="/" element={<Inicio />} />
           <Route path="*" element={<Inicio />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import * as UTIFModulo from 'utif2';
 import { apiArchivo } from '../services/api.js';
 
-const UTIF = UTIFModulo.default ?? UTIFModulo;
+let cargadorUtif = null;
+
+function cargarUtif() {
+  if (!cargadorUtif) {
+    cargadorUtif = import('utif2').then((modulo) => modulo.default ?? modulo);
+  }
+  return cargadorUtif;
+}
 
 function nombreDescarga(documento) {
   const base = (documento.titulo ?? 'documento')
@@ -18,6 +24,7 @@ function nombreDescarga(documento) {
 export default function VisorDocumento({ documento }) {
   const esTiff = documento.formato === 'TIFF';
   const lienzoRef = useRef(null);
+  const utifRef = useRef(null);
   const [fase, setFase] = useState('cargando');
   const [mensajeError, setMensajeError] = useState(null);
   const [urlArchivo, setUrlArchivo] = useState(null);
@@ -39,6 +46,8 @@ export default function VisorDocumento({ documento }) {
         urlRevocar = URL.createObjectURL(blob);
         if (esTiff) {
           const buffer = await blob.arrayBuffer();
+          const UTIF = await cargarUtif();
+          utifRef.current = UTIF;
           const ifds = UTIF.decode(buffer);
           ifds.forEach((ifd) => UTIF.decodeImage(buffer, ifd));
           if (cancelado) return;
@@ -64,7 +73,8 @@ export default function VisorDocumento({ documento }) {
     if (!esTiff || fase !== 'listo') return undefined;
     const ifd = paginas[paginaActual];
     const lienzo = lienzoRef.current;
-    if (!ifd || !lienzo || !ifd.width || !ifd.height) return undefined;
+    const UTIF = utifRef.current;
+    if (!ifd || !lienzo || !UTIF || !ifd.width || !ifd.height) return undefined;
 
     lienzo.width = ifd.width;
     lienzo.height = ifd.height;
